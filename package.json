@@ -1,0 +1,23 @@
+{
+  "name": "kokokrunch-order-robux-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord untuk sistem order top up Robux berbasis ticket (KokoKrunch Studios) dengan QRIS dinamis",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:logs": "pm2 logs kokokrunch-order-robux-bot"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "better-sqlite3": "^11.5.0",
+    "qrcode": "^1.5.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -61,7 +61,10 @@ async function handle(interaction) {
   const positionAhead = ticketManager.getQueueLength();
   if (positionAhead > 0) {
     await interaction.update({
-      content: '⏳Saat ini sistem sedang memproses beberapa pesanan secara bersamaan. Mohon tunggu sebentar (jangan klik ulang)...',
+      content:
+        '🔄 Sedang mengecek ketersediaan tiket...\n' +
+        'Sistem sedang memproses permintaan kamu dan mengecek antrean secara otomatis.\n\n' +
+        'Mohon tunggu sampai proses pengecekan selesai dan tidak melakukan klik ulang tombol selama proses berlangsung.',
       embeds: [],
       components: [],
     });
@@ -96,7 +99,10 @@ async function handle(interaction) {
       // beri tahu user dengan jelas (bukan error generik).
       db.closeOrder({ ticketId, status: 'Cancelled', progressNote: `Antrian dibatalkan: ${err.message}`, closedByDiscordId: null });
       await interaction.editReply({
-        content: '🔴 Toko baru saja **ditutup** oleh staff sementara ticket kamu masih menunggu di antrian. Ticket dibatalkan -- silakan coba lagi setelah toko dibuka kembali.',
+        content:
+          '🔒 Yah, toko baru saja ditutup!\n\n' +
+          'Mohon maaf ketersedian tiket telah terpenuhi, permintaan anda telah dibatalkan secara otomatis oleh sistem.\n\n' +
+          '🕐 Jangan khawatir, kamu bisa mencoba order kembali setelah toko dibuka.',
         embeds: [],
         components: [],
       });

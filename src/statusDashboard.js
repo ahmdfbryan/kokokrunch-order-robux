@@ -15,8 +15,7 @@ function buildStatusDashboardEmbed({ isOpen, activeOrdersCount, totalTransaction
     .setTitle('👑 KokoKrunch Store — Live Dashboard')
     .setDescription(
       [
-        '',
-        '',
+        '\u200b',
         '📊 **Status Sistem & Statistik Toko**',
         'Dashboard ini otomatis memantau status toko, antrian order, dan statistik transaksi KokoKrunch Store secara real-time.',
         '',

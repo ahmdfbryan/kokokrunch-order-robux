@@ -4,6 +4,7 @@ const pendingOrders = require('../pendingOrders');
 const { priceForAmount } = require('../constants');
 const ticketManager = require('../ticketManager');
 const { refreshOrderPanelMessage } = require('../panel');
+const { refreshStatusDashboard } = require('../statusDashboard');
 const { buildTicketCreatedEmbed, buildAlreadyHasTicketMessage } = require('../embeds');
 
 const CUSTOM_ID_PREFIX = 'buy_robux_amount_select';
@@ -76,6 +77,7 @@ async function handle(interaction) {
   if (limitJustReached) {
     db.setShopOpen({ isOpen: false, updatedBy: 'system:ticket-limit' });
     await refreshOrderPanelMessage(interaction.guild).catch((err) => console.warn('[Order] Gagal refresh panel setelah limit tercapai:', err.message));
+    await refreshStatusDashboard(interaction.guild).catch((err) => console.warn('[Order] Gagal refresh status dashboard setelah limit tercapai:', err.message));
   }
 
   // Kalau lagi rame (banyak ticket lain sedang diproses), kasih tahu user

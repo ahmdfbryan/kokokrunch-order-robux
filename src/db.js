@@ -38,6 +38,9 @@ if (!existingColumns.has('unique_code')) {
 if (!existingColumns.has('payment_amount')) {
   db.exec(`ALTER TABLE orders ADD COLUMN payment_amount INTEGER`);
 }
+if (!existingColumns.has('roblox_user_id')) {
+  db.exec(`ALTER TABLE orders ADD COLUMN roblox_user_id TEXT`);
+}
 
 // Tabel settings satu baris untuk status buka/tutup toko + lokasi pesan panel
 // (dipakai supaya command /toko bisa langsung EDIT pesan panel yang sudah
@@ -54,6 +57,17 @@ db.exec(`
 `);
 db.exec(`INSERT OR IGNORE INTO shop_settings (id, is_open) VALUES (1, 1)`);
 
+const shopColumns = new Set(db.prepare(`PRAGMA table_info(shop_settings)`).all().map((c) => c.name));
+if (!shopColumns.has('ticket_limit')) {
+  db.exec(`ALTER TABLE shop_settings ADD COLUMN ticket_limit INTEGER`);
+}
+if (!shopColumns.has('tickets_created_since_open')) {
+  db.exec(`ALTER TABLE shop_settings ADD COLUMN tickets_created_since_open INTEGER NOT NULL DEFAULT 0`);
+}
+if (!shopColumns.has('processing_log_message_id')) {
+  db.exec(`ALTER TABLE shop_settings ADD COLUMN processing_log_message_id TEXT`);
+}
+
 // Discord membatasi KERAS maksimal 50 channel per kategori. Kalau kategori
 // ticket utama (TICKET_CATEGORY_ID) penuh, bot otomatis bikin kategori
 // tambahan ("overflow") dan dicatat di sini supaya bisa dipakai ulang terus,
@@ -66,9 +80,68 @@ db.exec(`
   );
 `);
 
+// PENTING: bersihkan dulu sisa duplikat LAMA (dari bug sebelum index unik ini
+// ada) sebelum index dipasang -- kalau masih ada baris duplikat, CREATE UNIQUE
+// INDEX akan GAGAL dan bot tidak mau nyala. Untuk tiap grup buyer/akun Roblox
+// yang punya lebih dari 1 order "terbuka", yang PALING BARU dibiarkan tetap
+// terbuka, sisanya otomatis ditutup sebagai "Cancelled" (duplikat lama).
+function cleanupDuplicateOpenOrders() {
+  const dupBuyers = db.prepare(`
+    SELECT buyer_discord_id FROM orders WHERE closed_at IS NULL
+    GROUP BY buyer_discord_id HAVING COUNT(*) > 1
+  `).all();
+  const dupRoblox = db.prepare(`
+    SELECT roblox_username FROM orders WHERE closed_at IS NULL
+    GROUP BY roblox_username COLLATE NOCASE HAVING COUNT(*) > 1
+  `).all();
+
+  const ticketIdsToClose = new Set();
+  for (const { buyer_discord_id } of dupBuyers) {
+    const rows = db.prepare(`SELECT ticket_id FROM orders WHERE buyer_discord_id = ? AND closed_at IS NULL ORDER BY created_at DESC`).all(buyer_discord_id);
+    rows.slice(1).forEach((r) => ticketIdsToClose.add(r.ticket_id)); // simpan yang terbaru (index 0), sisanya ditutup
+  }
+  for (const { roblox_username } of dupRoblox) {
+    const rows = db.prepare(`SELECT ticket_id FROM orders WHERE roblox_username = ? COLLATE NOCASE AND closed_at IS NULL ORDER BY created_at DESC`).all(roblox_username);
+    rows.slice(1).forEach((r) => ticketIdsToClose.add(r.ticket_id));
+  }
+
+  if (ticketIdsToClose.size > 0) {
+    const closeDup = db.prepare(`
+      UPDATE orders SET status = 'Cancelled', progress_note = @note, closed_at = @closedAt, closed_by_discord_id = NULL
+      WHERE ticket_id = @ticketId
+    `);
+    for (const ticketId of ticketIdsToClose) {
+      closeDup.run({
+        ticketId,
+        note: 'Ditutup otomatis oleh sistem: terdeteksi duplikat order terbuka untuk pembeli/akun Roblox yang sama (pembersihan migrasi).',
+        closedAt: Date.now(),
+      });
+      console.warn(`[Migration] Order duplikat ${ticketId} otomatis ditutup (pembersihan sebelum pasang constraint unik).`);
+    }
+    console.warn(`[Migration] Total ${ticketIdsToClose.size} order duplikat dibersihkan. Cek channel Discord-nya manual kalau perlu.`);
+  }
+}
+cleanupDuplicateOpenOrders();
+
+// KUNCI GANDA di level database: walaupun logika JS di reserveOrder() sudah
+// atomik (aman dari race condition SELAMA cuma ada 1 proses Node.js yang
+// jalan), index unik parsial ini jadi jaring pengaman terakhir yang dipaksakan
+// SQLite sendiri -- tetap melindungi walau (misalnya) sempat ada 2 proses bot
+// jalan bersamaan tanpa sengaja (skenario yang sudah pernah kejadian sebelum
+// ini terkait token). INSERT kedua akan GAGAL dengan error constraint kalau
+// ada percobaan bikin order terbuka kedua untuk buyer/akun Roblox yang sama.
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_open_buyer
+  ON orders(buyer_discord_id) WHERE closed_at IS NULL
+`);
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_open_roblox
+  ON orders(roblox_username COLLATE NOCASE) WHERE closed_at IS NULL
+`);
+
 const insertOrderStmt = db.prepare(`
-  INSERT INTO orders (ticket_id, channel_id, buyer_discord_id, roblox_username, robux_amount, price_rupiah, unique_code, payment_amount, status, created_at)
-  VALUES (@ticketId, @channelId, @buyerDiscordId, @robloxUsername, @robuxAmount, @priceRupiah, @uniqueCode, @paymentAmount, 'pending', @createdAt)
+  INSERT INTO orders (ticket_id, channel_id, buyer_discord_id, roblox_username, roblox_user_id, robux_amount, price_rupiah, unique_code, payment_amount, status, created_at)
+  VALUES (@ticketId, @channelId, @buyerDiscordId, @robloxUsername, @robloxUserId, @robuxAmount, @priceRupiah, @uniqueCode, @paymentAmount, 'pending', @createdAt)
 `);
 
 const getByChannelStmt = db.prepare(`SELECT * FROM orders WHERE channel_id = ?`);
@@ -123,18 +196,28 @@ function getOpenOrderByRobloxUsername(robloxUsername) {
  * tidak mungkin ada interaction lain yang "menyelip" di antara pengecekan dan
  * penguncian slot-nya, walaupun ada banyak klik hampir bersamaan.
  *
- * Sekalian generate KODE UNIK nominal (3 digit dari ticket ID) dan pastikan
- * nominal pembayaran akhir (harga + kode unik) tidak bentrok dengan order lain
- * yang masih terbuka -- kalau bentrok, generate ulang ticket ID (looping).
+ * Sekalian: (1) generate KODE UNIK nominal (3 digit dari ticket ID) dan
+ * pastikan nominal pembayaran akhir tidak bentrok dengan order lain yang
+ * masih terbuka, (2) cek & kunci kuota ticket per sesi buka toko kalau
+ * ada batasnya (lihat /toko status:Buka limit:N).
  *
- * @returns {{ ok: true, ticketId: string, uniqueCode: number, paymentAmount: number } | { ok: false, reason: 'buyer'|'roblox', existingOrder: object }}
+ * @returns {{ ok: true, ticketId: string, uniqueCode: number, paymentAmount: number, limitJustReached: boolean }
+ *          | { ok: false, reason: 'buyer'|'roblox'|'limit', existingOrder?: object }}
  */
-function reserveOrder({ buyerDiscordId, robloxUsername, robuxAmount, priceRupiah }) {
+function reserveOrder({ buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah }) {
   const existingByBuyer = getOpenOrderByBuyerStmt.get(buyerDiscordId);
   if (existingByBuyer) return { ok: false, reason: 'buyer', existingOrder: existingByBuyer };
 
   const existingByRoblox = getOpenOrderByRobloxUsernameStmt.get(robloxUsername);
   if (existingByRoblox) return { ok: false, reason: 'roblox', existingOrder: existingByRoblox };
+
+  const settings = getShopSettingsStmt.get();
+  let limitJustReached = false;
+  if (settings.ticket_limit !== null && settings.ticket_limit !== undefined) {
+    if (settings.tickets_created_since_open >= settings.ticket_limit) {
+      return { ok: false, reason: 'limit' };
+    }
+  }
 
   const MAX_ATTEMPTS = 50;
   let ticketId, uniqueCode, paymentAmount, foundFreeSlot = false;
@@ -164,6 +247,7 @@ function reserveOrder({ buyerDiscordId, robloxUsername, robuxAmount, priceRupiah
       channelId: 'PENDING', // placeholder, diisi channel asli lewat updateOrderChannel setelah channel berhasil dibuat
       buyerDiscordId,
       robloxUsername,
+      robloxUserId: robloxUserId ?? null,
       robuxAmount,
       priceRupiah,
       uniqueCode,
@@ -171,12 +255,30 @@ function reserveOrder({ buyerDiscordId, robloxUsername, robuxAmount, priceRupiah
       createdAt: Date.now(),
     });
   } catch (err) {
-    // Extremely jarang: 50x percobaan masih bentrok. Lempar error yang jelas
-    // supaya pemanggil (amountSelect.js) bisa kasih pesan wajar ke user,
-    // bukan crash mentah.
+    // Jaring pengaman terakhir: kalau constraint UNIK di database yang
+    // menolak (misal karena 2 proses bot sempat jalan bersamaan), bukan cuma
+    // "ticket ID bentrok" -- deteksi dan kembalikan pesan yang benar ke user,
+    // bukan error mentah.
+    if (String(err.message).includes('idx_unique_open_buyer')) {
+      return { ok: false, reason: 'buyer', existingOrder: getOpenOrderByBuyerStmt.get(buyerDiscordId) };
+    }
+    if (String(err.message).includes('idx_unique_open_roblox')) {
+      return { ok: false, reason: 'roblox', existingOrder: getOpenOrderByRobloxUsernameStmt.get(robloxUsername) };
+    }
     throw new Error(`Gagal generate ticket ID unik setelah ${MAX_ATTEMPTS} percobaan: ${err.message}`);
   }
-  return { ok: true, ticketId, uniqueCode, paymentAmount };
+
+  // Kalau ada limit ticket per sesi, naikkan counter-nya sekarang (bagian dari
+  // langkah atomik yang sama), dan tandai kalau limit baru saja tercapai
+  // persis di reservasi ini -- pemanggil (amountSelect.js) akan pakai flag ini
+  // buat otomatis nutup tombol "Beli Robux" setelah ticket ini selesai dibuat.
+  if (settings.ticket_limit !== null && settings.ticket_limit !== undefined) {
+    const newCount = settings.tickets_created_since_open + 1;
+    db.prepare(`UPDATE shop_settings SET tickets_created_since_open = @newCount WHERE id = 1`).run({ newCount });
+    limitJustReached = newCount >= settings.ticket_limit;
+  }
+
+  return { ok: true, ticketId, uniqueCode, paymentAmount, limitJustReached };
 }
 
 /** Tempel channel_id asli ke order yang tadinya cuma "PENDING" (dipanggil setelah channel berhasil dibuat). */
@@ -219,12 +321,33 @@ function markPaymentConfirmed({ ticketId, confirmedBy }) {
   markPaymentConfirmedStmt.run({ ticketId, confirmedAt: Date.now(), confirmedBy });
 }
 
+/**
+ * Semua order yang dana-nya sudah dikonfirmasi ("/dana-masuk") tapi ticket-nya
+ * belum ditutup -- dipakai buat CSV export & channel log pesanan. Diurutkan
+ * berdasarkan kapan dana-nya dikonfirmasi (urutan proses staff), bukan kapan
+ * ticket dibuat.
+ */
+const getQueuedOrdersForLogStmt = db.prepare(`
+  SELECT * FROM orders WHERE status = 'queued' AND closed_at IS NULL ORDER BY payment_confirmed_at ASC
+`);
+function getQueuedOrdersForLog() {
+  return getQueuedOrdersForLogStmt.all();
+}
+
 const getShopSettingsStmt = db.prepare(`SELECT * FROM shop_settings WHERE id = 1`);
 const setShopOpenStmt = db.prepare(`
   UPDATE shop_settings SET is_open = @isOpen, updated_at = @updatedAt, updated_by = @updatedBy WHERE id = 1
 `);
+const setShopOpenWithLimitStmt = db.prepare(`
+  UPDATE shop_settings
+  SET is_open = @isOpen, ticket_limit = @ticketLimit, tickets_created_since_open = 0, updated_at = @updatedAt, updated_by = @updatedBy
+  WHERE id = 1
+`);
 const setPanelMessageStmt = db.prepare(`
   UPDATE shop_settings SET panel_channel_id = @channelId, panel_message_id = @messageId WHERE id = 1
+`);
+const setProcessingLogMessageStmt = db.prepare(`
+  UPDATE shop_settings SET processing_log_message_id = @messageId WHERE id = 1
 `);
 
 function getShopSettings() {
@@ -235,12 +358,32 @@ function isShopOpen() {
   return getShopSettingsStmt.get().is_open === 1;
 }
 
-function setShopOpen({ isOpen, updatedBy }) {
-  setShopOpenStmt.run({ isOpen: isOpen ? 1 : 0, updatedAt: Date.now(), updatedBy });
+/**
+ * @param {{ isOpen: boolean, updatedBy: string, ticketLimit?: number|null }} opts
+ * ticketLimit HANYA dipakai saat isOpen=true -- setiap kali toko dibuka,
+ * counter ticket sesi ini di-reset ke 0 dan limit baru dipasang (atau null
+ * kalau tidak dibatasi). Saat isOpen=false, limit lama dibiarkan apa adanya
+ * (tidak relevan lagi sampai dibuka ulang).
+ */
+function setShopOpen({ isOpen, updatedBy, ticketLimit }) {
+  if (isOpen) {
+    setShopOpenWithLimitStmt.run({
+      isOpen: 1,
+      ticketLimit: ticketLimit ?? null,
+      updatedAt: Date.now(),
+      updatedBy,
+    });
+  } else {
+    setShopOpenStmt.run({ isOpen: 0, updatedAt: Date.now(), updatedBy });
+  }
 }
 
 function setPanelMessage({ channelId, messageId }) {
   setPanelMessageStmt.run({ channelId, messageId });
+}
+
+function setProcessingLogMessageId(messageId) {
+  setProcessingLogMessageStmt.run({ messageId });
 }
 
 const insertOverflowCategoryStmt = db.prepare(`
@@ -276,6 +419,7 @@ module.exports = {
   reserveOrder,
   updateOrderChannel,
   getAllOpenOrders,
+  getQueuedOrdersForLog,
   closeOrder,
   closeOrderAsDeleted,
   markPaymentConfirmed,
@@ -283,6 +427,7 @@ module.exports = {
   isShopOpen,
   setShopOpen,
   setPanelMessage,
+  setProcessingLogMessageId,
   addOverflowCategory,
   getAllOverflowCategories,
   generateTicketId,

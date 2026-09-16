@@ -2,6 +2,7 @@ const { MessageFlags } = require('discord.js');
 const config = require('../config');
 const db = require('../db');
 const { buildReviewEmbed } = require('../embeds');
+const { refreshProcessingLog } = require('../processingLog');
 
 const CUSTOM_ID_PREFIX = 'close_note_modal';
 
@@ -23,6 +24,10 @@ async function handle(interaction) {
     progressNote,
     closedByDiscordId: interaction.user.id,
   });
+
+  // Kalau order ini sebelumnya sempat masuk channel log pesanan (sudah pernah
+  // /dana-masuk), sekarang otomatis hilang dari daftar & CSV karena sudah ditutup.
+  await refreshProcessingLog(interaction.guild).catch((err) => console.error('[Close] Gagal update processing log:', err.message));
 
   const reviewEmbed = buildReviewEmbed({
     ticketId,

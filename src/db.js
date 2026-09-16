@@ -67,6 +67,9 @@ if (!shopColumns.has('tickets_created_since_open')) {
 if (!shopColumns.has('processing_log_message_id')) {
   db.exec(`ALTER TABLE shop_settings ADD COLUMN processing_log_message_id TEXT`);
 }
+if (!shopColumns.has('status_dashboard_message_id')) {
+  db.exec(`ALTER TABLE shop_settings ADD COLUMN status_dashboard_message_id TEXT`);
+}
 
 // Discord membatasi KERAS maksimal 50 channel per kategori. Kalau kategori
 // ticket utama (TICKET_CATEGORY_ID) penuh, bot otomatis bikin kategori
@@ -351,6 +354,9 @@ const setPanelMessageStmt = db.prepare(`
 const setProcessingLogMessageStmt = db.prepare(`
   UPDATE shop_settings SET processing_log_message_id = @messageId WHERE id = 1
 `);
+const setStatusDashboardMessageStmt = db.prepare(`
+  UPDATE shop_settings SET status_dashboard_message_id = @messageId WHERE id = 1
+`);
 
 function getShopSettings() {
   return getShopSettingsStmt.get();
@@ -386,6 +392,30 @@ function setPanelMessage({ channelId, messageId }) {
 
 function setProcessingLogMessageId(messageId) {
   setProcessingLogMessageStmt.run({ messageId });
+}
+
+function setStatusDashboardMessageId(messageId) {
+  setStatusDashboardMessageStmt.run({ messageId });
+}
+
+/**
+ * Statistik keseluruhan (all-time) buat dashboard status publik: jumlah
+ * transaksi yang BERHASIL (status Completed) + total Robux yang terjual.
+ * Sengaja TIDAK menghitung nominal Rupiah -- dashboard ini publik, jadi
+ * info keuangan tidak ditampilkan.
+ */
+const getCompletedStatsStmt = db.prepare(`
+  SELECT COUNT(*) AS totalTransactions, COALESCE(SUM(robux_amount), 0) AS totalRobuxSold
+  FROM orders WHERE status = 'Completed'
+`);
+function getCompletedStats() {
+  return getCompletedStatsStmt.get();
+}
+
+/** Jumlah ticket yang lagi aktif (dibuat tapi belum ditutup) -- dipakai sebagai "antrian berjalan" di dashboard. */
+const getActiveOrdersCountStmt = db.prepare(`SELECT COUNT(*) AS count FROM orders WHERE closed_at IS NULL`);
+function getActiveOrdersCount() {
+  return getActiveOrdersCountStmt.get().count;
 }
 
 const insertOverflowCategoryStmt = db.prepare(`
@@ -430,6 +460,9 @@ module.exports = {
   setShopOpen,
   setPanelMessage,
   setProcessingLogMessageId,
+  setStatusDashboardMessageId,
+  getCompletedStats,
+  getActiveOrdersCount,
   addOverflowCategory,
   getAllOverflowCategories,
   generateTicketId,

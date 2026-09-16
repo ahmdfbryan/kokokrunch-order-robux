@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const config = require('./config');
-const { formatRupiah, maskUsername } = require('./util');
+const { formatRupiah, maskUsername, formatPlayerId } = require('./util');
 
 const COLOR_BRAND = 0x5865f2;
 const COLOR_RED = 0xed4245;
@@ -122,7 +122,7 @@ function buildTicketOrderEmbed({ ticketId, buyerDiscordId, robloxUsername, roblo
       { name: '🆔 Ticket ID', value: ticketId, inline: true },
       { name: '🙋 Pembeli', value: `<@${buyerDiscordId}>`, inline: true },
       { name: '👤 Username Roblox', value: robloxUsername, inline: true },
-      { name: '🔑 Player ID', value: robloxUserId ? String(robloxUserId) : '-', inline: true },
+      { name: '🔑 Player ID', value: formatPlayerId(robloxUserId), inline: true },
       { name: 'Jumlah Robux', value: `${robuxAmount.toLocaleString('id-ID')} Robux`, inline: true },
       { name: '💰 Harga', value: formatRupiah(priceRupiah), inline: true },
       { name: '🔢 Kode Unik', value: String(uniqueCode).padStart(3, '0'), inline: true },
@@ -182,7 +182,7 @@ function buildPaymentConfirmedEmbed({ ticketId, buyerDiscordId, robloxUsername, 
     .addFields(
       { name: '🆔 Ticket', value: ticketId, inline: true },
       { name: '👤 Roblox', value: robloxUsername, inline: true },
-      { name: '🔑 Player ID', value: robloxUserId ? String(robloxUserId) : '-', inline: true },
+      { name: '🔑 Player ID', value: formatPlayerId(robloxUserId), inline: true },
       { name: 'Robux', value: `${robuxAmount.toLocaleString('id-ID')} Robux`, inline: true },
       { name: '💵 Nominal', value: formatRupiah(priceRupiah), inline: true },
       { name: '📦 Status', value: '🟡 Dalam Antrian', inline: true },

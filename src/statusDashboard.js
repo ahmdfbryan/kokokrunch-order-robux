@@ -28,7 +28,7 @@ function buildStatusDashboardEmbed({ isOpen, activeOrdersCount, totalTransaction
       { name: '🧾 Total Transaksi', value: `**${totalTransactions.toLocaleString('id-ID')}**`, inline: true },
       { name: '🪙 Total Robux Terjual', value: `**${totalRobuxSold.toLocaleString('id-ID')}** Robux`, inline: true }
     )
-    .setFooter({ text: '👑 KokoKrunch Store · Update otomatis real-time' })
+    .setFooter({ text: '👑 KokoKrunch Store' })
     .setTimestamp();
 }
 

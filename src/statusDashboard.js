@@ -21,7 +21,7 @@ function buildStatusDashboardEmbed({ isOpen, activeOrdersCount, totalTransaction
         '',
         `🤖 **Status Sistem :** ✅ \`ACTIVE\``,
         `🛒 **Toko :** ${statusBadge}  ${statusNote}`,
-        `⏳ **Antrian Berjalan** · ${activeOrdersCount.toLocaleString('id-ID')} ticket sedang diproses`,
+        `⏳ **Antrian Berjalan :** ${activeOrdersCount.toLocaleString('id-ID')} ticket sedang diproses`,
       ].join('\n')
     )
     .addFields(

@@ -3,6 +3,7 @@ const config = require('../config');
 const db = require('../db');
 const ticketManager = require('../ticketManager');
 const { refreshOrderPanelMessage } = require('../panel');
+const { refreshStatusDashboard } = require('../statusDashboard');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -47,6 +48,7 @@ module.exports = {
     }
 
     const { refreshed, reason } = await refreshOrderPanelMessage(interaction.guild);
+    await refreshStatusDashboard(interaction.guild).catch((err) => console.error('[Toko] Gagal update status dashboard:', err.message));
 
     const statusText = wantOpen ? '🟢 **BUKA**' : '🔴 **TUTUP**';
     let reply = `✅ Toko sekarang ${statusText}.`;

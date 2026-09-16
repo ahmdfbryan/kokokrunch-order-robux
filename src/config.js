@@ -77,6 +77,10 @@ const config = {
   // update ini tetap aman dipasang ke bot yang sudah production tanpa perlu
   // buru-buru nambah variabel baru di .env yang sudah ada.
   processingLogChannelId: optional('PROCESSING_LOG_CHANNEL_ID', null),
+
+  // Channel dashboard status sistem (opsional, publik). Kalau dikosongkan,
+  // fitur ini otomatis nonaktif (tidak bikin bot error).
+  statusDashboardChannelId: optional('STATUS_DASHBOARD_CHANNEL_ID', null),
 };
 
 if (Number.isNaN(config.eligibleDays) || config.eligibleDays <= 0) {

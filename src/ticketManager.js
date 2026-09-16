@@ -8,15 +8,15 @@ const ticketQueue = require('./ticketQueue');
 const { withDiscordRetry } = require('./discordRetry');
 const { getAvailableTicketCategory } = require('./categoryManager');
 
-async function createOrderTicket({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robuxAmount, priceRupiah }) {
+async function createOrderTicket({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah }) {
   // Semua pembuatan channel diantre supaya tidak "nembak" Discord API secara
   // bersamaan kalau lagi diserbu banyak order sekaligus.
   return ticketQueue.enqueue(() =>
-    createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robuxAmount, priceRupiah })
+    createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah })
   );
 }
 
-async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robuxAmount, priceRupiah }) {
+async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah }) {
   const ticketCode = ticketId.split('-')[1]; // 5 karakter unik dari ticket ID, contoh: LW102
 
   const categoryId = await getAvailableTicketCategory(guild);
@@ -27,7 +27,7 @@ async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild
         name: slugifyChannelName(`order-${ticketCode}-${robloxUsername}`),
         type: ChannelType.GuildText,
         parent: categoryId,
-        topic: `Order Robux ${ticketId} · Pembeli: ${buyerUser.id} · Roblox: ${robloxUsername} · ${robuxAmount} Robux`,
+        topic: `Order Robux ${ticketId} · Pembeli: ${buyerUser.id} · Roblox: ${robloxUsername} (${robloxUserId}) · ${robuxAmount} Robux`,
         permissionOverwrites: [
           { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
           {
@@ -58,6 +58,7 @@ async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild
     ticketId,
     buyerDiscordId: buyerUser.id,
     robloxUsername,
+    robloxUserId,
     robuxAmount,
     priceRupiah,
     uniqueCode,

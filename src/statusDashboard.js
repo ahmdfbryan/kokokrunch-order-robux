@@ -6,30 +6,25 @@ const COLOR_GOLD = 0xf2c94c;
 const COLOR_RED = 0xed4245;
 
 /** Bikin embed dashboard status -- publik, jadi TIDAK ada info keuangan (Rupiah) di sini. */
-function buildStatusDashboardEmbed({ isOpen, ticketLimit, ticketsCreated, activeOrdersCount, totalTransactions, totalRobuxSold }) {
+function buildStatusDashboardEmbed({ isOpen, activeOrdersCount, totalTransactions, totalRobuxSold }) {
   const statusBadge = isOpen ? '🟢 `BUKA`' : '🔴 `TUTUP`';
   const statusNote = isOpen ? 'Order Robux tersedia sekarang — yuk order! 🚀' : 'Order sementara tidak tersedia, cek lagi nanti ya.';
-  const stockLine =
-    isOpen && ticketLimit != null
-      ? `🎟️ **Stock Tersisa** · ${Math.max(0, ticketLimit - ticketsCreated).toLocaleString('id-ID')} / ${ticketLimit.toLocaleString('id-ID')} slot`
-      : isOpen
-        ? '🎟️ **Stock** · Tidak dibatasi ✨'
-        : '🎟️ **Stock** · —';
 
   return new EmbedBuilder()
     .setColor(isOpen ? COLOR_GOLD : COLOR_RED)
-    .setAuthor({ name: '👑 KokoKrunch Store — Live Dashboard' })
-    .setTitle('📊 Status Sistem & Statistik Toko')
+    .setTitle('👑 KokoKrunch Store — Live Dashboard')
     .setDescription(
       [
-        `${statusBadge}  ${statusNote}`,
+        '📊 **Status Sistem & Statistik Toko**',
         '',
-        stockLine,
+        '*Dashboard ini otomatis memantau status toko, antrian order, dan statistik transaksi KokoKrunch Store secara real-time — tanpa perlu di-refresh manual.*',
+        '',
+        `${statusBadge}  ${statusNote}`,
         `⏳ **Antrian Berjalan** · ${activeOrdersCount.toLocaleString('id-ID')} ticket sedang diproses`,
       ].join('\n')
     )
     .addFields(
-      { name: '\u200b', value: `${'━'.repeat(28)}\n**✨ STATISTIK KESELURUHAN**`, inline: false },
+      { name: '\u200b', value: `${'━'.repeat(28)}\n**📈 STATISTIK KESELURUHAN**`, inline: false },
       { name: '🧾 Total Transaksi', value: `**${totalTransactions.toLocaleString('id-ID')}**`, inline: true },
       { name: '🪙 Total Robux Terjual', value: `**${totalRobuxSold.toLocaleString('id-ID')}** Robux`, inline: true }
     )

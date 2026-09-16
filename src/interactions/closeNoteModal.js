@@ -3,6 +3,7 @@ const config = require('../config');
 const db = require('../db');
 const { buildReviewEmbed } = require('../embeds');
 const { refreshProcessingLog } = require('../processingLog');
+const { refreshStatusDashboard } = require('../statusDashboard');
 
 const CUSTOM_ID_PREFIX = 'close_note_modal';
 
@@ -28,6 +29,10 @@ async function handle(interaction) {
   // Kalau order ini sebelumnya sempat masuk channel log pesanan (sudah pernah
   // /dana-masuk), sekarang otomatis hilang dari daftar & CSV karena sudah ditutup.
   await refreshProcessingLog(interaction.guild).catch((err) => console.error('[Close] Gagal update processing log:', err.message));
+
+  // Update dashboard status publik (kalau fiturnya diaktifkan) -- statistik
+  // total transaksi/robux & antrian aktif berubah begitu ticket ini ditutup.
+  await refreshStatusDashboard(interaction.guild).catch((err) => console.error('[Close] Gagal update status dashboard:', err.message));
 
   const reviewEmbed = buildReviewEmbed({
     ticketId,

@@ -142,21 +142,43 @@ function buildTicketOrderEmbed({ ticketId, buyerDiscordId, robloxUsername, roblo
 }
 
 function buildReviewEmbed({ ticketId, robloxUsername, robuxAmount, status, progressNote }) {
-  const statusColor = status === 'Completed' ? COLOR_GREEN : status === 'Cancelled' ? COLOR_RED : COLOR_ORANGE;
-  const title = status === 'Completed' ? '✅ Robux Terkirim' : '🚫 Transaksi Dibatalkan';
+  const statusPresets = {
+    Completed: {
+      color: COLOR_GREEN,
+      title: '🎉 Transaksi Berhasil Diselesaikan',
+      intro: '✨ Pesanan telah diproses dan Robux sudah **berhasil terkirim**. Terima kasih sudah berbelanja bersama kami!',
+      statusBadge: '🟢 `COMPLETED`',
+    },
+    Cancelled: {
+      color: COLOR_RED,
+      title: '❌ Transaksi Dibatalkan',
+      intro: 'Pesanan ini **dibatalkan** dan tidak diteruskan ke proses pengiriman Robux.',
+      statusBadge: '🔴 `CANCELLED`',
+    },
+    Refunded: {
+      color: COLOR_ORANGE,
+      title: '↩️ Dana Telah Dikembalikan',
+      intro: 'Pesanan ini **di-refund**. Dana pembayaran sudah dikembalikan ke pembeli.',
+      statusBadge: '🟠 `REFUNDED`',
+    },
+  };
+  const preset = statusPresets[status] ?? statusPresets.Cancelled;
+
   return new EmbedBuilder()
-    .setColor(statusColor)
-    .setTitle(title)
-    .setDescription('Ringkasan pesanan yang telah diproses.')
+    .setColor(preset.color)
+    .setAuthor({ name: 'KokoKrunch Studios · Order Robux' })
+    .setTitle(preset.title)
+    .setDescription(`${preset.intro}\n${'▬'.repeat(18)}`)
     .addFields(
-      { name: '🆔 ID', value: ticketId, inline: true },
-      { name: '👤 Username', value: maskUsername(robloxUsername), inline: true },
-      { name: 'Robux', value: `${robuxAmount.toLocaleString('id-ID')} Robux`, inline: true },
-      { name: '🔄 Status', value: status, inline: true },
-      { name: '💳 Pembayaran', value: 'QRIS', inline: true },
-      { name: '📋 Progress', value: progressNote || '-', inline: false }
+      { name: '🆔 Ticket ID', value: `\`${ticketId}\``, inline: true },
+      { name: '👤 Akun Roblox', value: `\`${maskUsername(robloxUsername)}\``, inline: true },
+      { name: '📌 Status', value: preset.statusBadge, inline: true },
+      { name: '🪙 Jumlah Robux', value: `**${robuxAmount.toLocaleString('id-ID')}** Robux`, inline: true },
+      { name: '💳 Metode Bayar', value: 'QRIS', inline: true },
+      { name: '\u200b', value: '\u200b', inline: true },
+      { name: '📝 Catatan Admin', value: progressNote ? `*${progressNote}*` : '-', inline: false }
     )
-    .setFooter({ text: 'KokoKrunch Studios' })
+    .setFooter({ text: '💜 KokoKrunch Studios · Dipercaya & Terverifikasi' })
     .setTimestamp();
 }
 

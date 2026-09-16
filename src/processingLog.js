@@ -1,6 +1,7 @@
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const config = require('./config');
 const db = require('./db');
+const { formatPlayerId } = require('./util');
 
 const COLOR_BRAND = 0x5865f2;
 
@@ -14,7 +15,7 @@ function csvEscape(value) {
 /** Bikin isi file CSV: field 1 username, field 2 Player ID, field 3 jumlah Robux -- berurutan sesuai kapan dana dikonfirmasi. */
 function buildCsvContent(orders) {
   const header = 'Username,PlayerID,JumlahRobux';
-  const rows = orders.map((o) => [csvEscape(o.roblox_username), csvEscape(o.roblox_user_id ?? ''), csvEscape(o.robux_amount)].join(','));
+  const rows = orders.map((o) => [csvEscape(o.roblox_username), csvEscape(formatPlayerId(o.roblox_user_id)), csvEscape(o.robux_amount)].join(','));
   return [header, ...rows].join('\n');
 }
 
@@ -32,8 +33,12 @@ function buildLogEmbed(orders) {
   }
 
   const lines = orders.map(
-    (o, i) => `**${i + 1}.** \`${o.roblox_username}\` — Player ID: \`${o.roblox_user_id ?? '-'}\` — ${o.robux_amount.toLocaleString('id-ID')} Robux (${o.ticket_id})`
+    (o, i) => `**${i + 1}.** \`${o.roblox_username}\` — \`${formatPlayerId(o.roblox_user_id)}\` — ${o.robux_amount.toLocaleString('id-ID')} Robux (${o.ticket_id})`
   );
+
+  const totalRobux = orders.reduce((sum, o) => sum + o.robux_amount, 0);
+  lines.push('', `**Total: ${orders.length} pesanan · ${totalRobux.toLocaleString('id-ID')} Robux**`);
+
   embed.setDescription(lines.join('\n'));
   return embed;
 }

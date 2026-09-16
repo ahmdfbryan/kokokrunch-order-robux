@@ -3,6 +3,7 @@ const db = require('../db');
 const pendingOrders = require('../pendingOrders');
 const { priceForAmount } = require('../constants');
 const ticketManager = require('../ticketManager');
+const { refreshOrderPanelMessage } = require('../panel');
 const { buildTicketCreatedEmbed, buildAlreadyHasTicketMessage } = require('../embeds');
 
 const CUSTOM_ID_PREFIX = 'buy_robux_amount_select';
@@ -24,12 +25,14 @@ async function handle(interaction) {
 
   // Reservasi ATOMIK: cek + kunci slot (per pembeli DAN per akun Roblox) dalam
   // satu langkah sinkron -- ini yang mencegah 2 klik hampir bersamaan sama-sama
-  // lolos dan bikin 2 ticket sekaligus.
+  // lolos dan bikin 2 ticket sekaligus. Sekalian cek kuota ticket per sesi
+  // kalau staff pasang limit lewat /toko.
   let reservation;
   try {
     reservation = db.reserveOrder({
       buyerDiscordId: interaction.user.id,
       robloxUsername: pending.robloxUsername,
+      robloxUserId: pending.robloxUserId,
       robuxAmount,
       priceRupiah,
     });
@@ -44,16 +47,36 @@ async function handle(interaction) {
   }
 
   if (!reservation.ok) {
+    pendingOrders.remove(token);
+
+    if (reservation.reason === 'limit') {
+      await interaction.update({
+        content:
+          '🔒 Yah, kuota ticket untuk sesi ini sudah penuh!\n\n' +
+          'Mohon maaf, semua slot ticket sudah terisi. Silakan coba lagi setelah toko dibuka ulang.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
     await interaction.update({
       content: buildAlreadyHasTicketMessage({ reason: reservation.reason, existingOrder: reservation.existingOrder }),
       embeds: [],
       components: [],
     });
-    pendingOrders.remove(token);
     return;
   }
 
-  const { ticketId, uniqueCode, paymentAmount } = reservation;
+  const { ticketId, uniqueCode, paymentAmount, limitJustReached } = reservation;
+
+  // Kalau reservasi ini yang bikin kuota ticket sesi ini tercapai, langsung
+  // tutup tombol "Beli Robux" di panel SEKARANG (bukan nunggu staff /toko
+  // manual) -- tapi jangan batalkan ticket yang sedang diantre lain, biarkan selesai.
+  if (limitJustReached) {
+    db.setShopOpen({ isOpen: false, updatedBy: 'system:ticket-limit' });
+    await refreshOrderPanelMessage(interaction.guild).catch((err) => console.warn('[Order] Gagal refresh panel setelah limit tercapai:', err.message));
+  }
 
   // Kalau lagi rame (banyak ticket lain sedang diproses), kasih tahu user
   // sistemnya lagi sibuk, supaya nggak kelihatan diam/nge-hang -- tanpa
@@ -80,6 +103,7 @@ async function handle(interaction) {
       guild: interaction.guild,
       buyerUser: interaction.user,
       robloxUsername: pending.robloxUsername,
+      robloxUserId: pending.robloxUserId,
       robuxAmount,
       priceRupiah,
     });

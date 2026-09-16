@@ -71,6 +71,12 @@ const config = {
   // format (cuma ID, atau kurang tanda < >), otomatis dinormalisasi di bawah.
   // Kalau dikosongkan, bot pakai emoji unicode 🪙 sebagai fallback.
   robuxEmoji: normalizeRobuxEmoji(optional('ROBUX_EMOJI', '🪙')),
+
+  // Channel log pesanan + CSV export (opsional). Kalau dikosongkan, fitur ini
+  // otomatis nonaktif (tidak bikin bot error) -- sengaja OPSIONAL supaya
+  // update ini tetap aman dipasang ke bot yang sudah production tanpa perlu
+  // buru-buru nambah variabel baru di .env yang sudah ada.
+  processingLogChannelId: optional('PROCESSING_LOG_CHANNEL_ID', null),
 };
 
 if (Number.isNaN(config.eligibleDays) || config.eligibleDays <= 0) {

@@ -7,6 +7,7 @@ const { slugifyChannelName } = require('./util');
 const ticketQueue = require('./ticketQueue');
 const { withDiscordRetry } = require('./discordRetry');
 const { getAvailableTicketCategory } = require('./categoryManager');
+const { refreshStatusDashboard } = require('./statusDashboard');
 
 async function createOrderTicket({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah }) {
   // Semua pembuatan channel diantre supaya tidak "nembak" Discord API secara
@@ -81,6 +82,10 @@ async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild
       }),
     { context: `kirim pesan awal ticket ${ticketId}` }
   );
+
+  // Update dashboard status publik (kalau fiturnya diaktifkan lewat .env) --
+  // ticket baru ini mengubah angka "antrian berjalan" & sisa stock.
+  await refreshStatusDashboard(guild).catch((err) => console.error('[Ticket] Gagal update status dashboard:', err.message));
 
   return { ticketId, channel };
 }

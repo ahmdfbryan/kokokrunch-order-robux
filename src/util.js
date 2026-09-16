@@ -38,4 +38,15 @@ function slugifyChannelName(text) {
     .slice(0, 90);
 }
 
-module.exports = { formatRupiah, maskUsername, slugifyChannelName, toButtonEmoji };
+/**
+ * Tampilkan Player ID Roblox dengan bersih. Data lama (sebelum diperbaiki di
+ * db.js) sempat kesimpen dengan akhiran ".0" (kuirk konversi angka->teks di
+ * SQLite) -- fungsi ini buang akhiran itu kalau ada, supaya data lama & baru
+ * sama-sama tampil benar tanpa perlu migrasi ulang database.
+ */
+function formatPlayerId(robloxUserId) {
+  if (robloxUserId === null || robloxUserId === undefined) return '-';
+  return String(robloxUserId).replace(/\.0$/, '');
+}
+
+module.exports = { formatRupiah, maskUsername, slugifyChannelName, toButtonEmoji, formatPlayerId };

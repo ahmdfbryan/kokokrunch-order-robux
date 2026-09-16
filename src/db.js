@@ -247,7 +247,7 @@ function reserveOrder({ buyerDiscordId, robloxUsername, robloxUserId, robuxAmoun
       channelId: 'PENDING', // placeholder, diisi channel asli lewat updateOrderChannel setelah channel berhasil dibuat
       buyerDiscordId,
       robloxUsername,
-      robloxUserId: robloxUserId ?? null,
+      robloxUserId: robloxUserId != null ? String(robloxUserId) : null,
       robuxAmount,
       priceRupiah,
       uniqueCode,

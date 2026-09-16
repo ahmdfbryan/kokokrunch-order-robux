@@ -1,11 +1,12 @@
 // Kalau banyak orang klik "Beli Robux" hampir bersamaan (misal pas toko baru
 // dibuka), bikin channel ticket SEKALIGUS untuk semuanya bisa memicu rate
 // limit Discord untuk pembuatan channel. Queue ini memaksa pembuatan channel
-// diproses SATU PER SATU dengan jeda aman di antaranya, supaya tidak pernah
-// "nembak" API secara bersamaan -- throughput jadi sedikit lebih lambat saat
-// rame, tapi jauh lebih stabil dan tidak pernah gagal total.
+// diproses SATU PER SATU dengan jeda ADAPTIF (lihat rateLimitTracker.js):
+// mulai cepat, otomatis melambat sementara kalau Discord beneran kasih sinyal
+// rate-limit, lalu cepat lagi begitu kondisi normal -- bukan angka tetap yang
+// harus ditebak manual.
 
-const MIN_INTERVAL_MS = 1500; // jeda aman antar pembuatan channel
+const rateLimitTracker = require('./rateLimitTracker');
 
 const queue = [];
 let processing = false;
@@ -20,9 +21,10 @@ async function processQueue() {
   processing = true;
 
   while (queue.length > 0) {
+    const minInterval = rateLimitTracker.getDelay();
     const elapsed = Date.now() - lastRunAt;
-    if (elapsed < MIN_INTERVAL_MS) {
-      await sleep(MIN_INTERVAL_MS - elapsed);
+    if (elapsed < minInterval) {
+      await sleep(minInterval - elapsed);
     }
 
     const { taskFn, resolve, reject } = queue.shift();

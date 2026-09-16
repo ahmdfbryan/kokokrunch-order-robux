@@ -2,6 +2,8 @@
 // Discord API (discord.js). Kalau kena rate limit (429) atau error server
 // (5xx) sementara, coba lagi otomatis dengan jeda -- bukan langsung nyerah.
 
+const rateLimitTracker = require('./rateLimitTracker');
+
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
 
@@ -23,7 +25,9 @@ function getRetryDelayMs(err, attempt) {
 
 /**
  * Jalankan fungsi async yang manggil Discord API, retry otomatis kalau kena
- * rate limit / error server sementara.
+ * rate limit / error server sementara. Setiap kali kena 429/gagal ATAU
+ * berhasil, dilaporkan ke rateLimitTracker supaya jeda antrian pembuatan
+ * ticket (ticketQueue.js) bisa menyesuaikan diri secara adaptif.
  * @param {() => Promise<any>} fn
  * @param {{ context?: string, retries?: number }} options
  */
@@ -34,12 +38,17 @@ async function withDiscordRetry(fn, options = {}) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      return await fn();
+      const result = await fn();
+      rateLimitTracker.reportSuccess();
+      return result;
     } catch (err) {
       lastError = err;
+      const status = err.status ?? err.httpStatus;
+      if (status === 429) rateLimitTracker.reportRateLimited();
+
       const willRetry = attempt < retries && isRetryableDiscordError(err);
       console.warn(
-        `[Discord Retry] Gagal ${context} (percobaan ${attempt + 1}/${retries + 1}), status: ${err.status ?? 'unknown'}` +
+        `[Discord Retry] Gagal ${context} (percobaan ${attempt + 1}/${retries + 1}), status: ${status ?? 'unknown'}` +
         (willRetry ? ' -> mencoba ulang...' : ' -> menyerah.')
       );
       if (!willRetry) break;

@@ -17,14 +17,14 @@ function buildStatusDashboardEmbed({ isOpen, activeOrdersCount, totalTransaction
       [
         '📊 **Status Sistem & Statistik Toko**',
         '',
-        '*Dashboard ini otomatis memantau status toko, antrian order, dan statistik transaksi KokoKrunch Store secara real-time — tanpa perlu di-refresh manual.*',
+        '*Dashboard ini otomatis memantau status toko, antrian order, dan statistik transaksi KokoKrunch Store secara real-time.*',
         '',
         `${statusBadge}  ${statusNote}`,
         `⏳ **Antrian Berjalan** · ${activeOrdersCount.toLocaleString('id-ID')} ticket sedang diproses`,
       ].join('\n')
     )
     .addFields(
-      { name: '\u200b', value: `${'━'.repeat(28)}\n**📈 STATISTIK KESELURUHAN**`, inline: false },
+      { name: '\u200b', value: `**📈 STATISTIK KESELURUHAN**\n${'━'.repeat(28)}`, inline: false },
       { name: '🧾 Total Transaksi', value: `**${totalTransactions.toLocaleString('id-ID')}**`, inline: true },
       { name: '🪙 Total Robux Terjual', value: `**${totalRobuxSold.toLocaleString('id-ID')}** Robux`, inline: true }
     )

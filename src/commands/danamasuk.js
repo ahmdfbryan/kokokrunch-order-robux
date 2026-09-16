@@ -2,6 +2,7 @@ const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const config = require('../config');
 const db = require('../db');
 const { buildPaymentConfirmedEmbed } = require('../embeds');
+const { refreshProcessingLog } = require('../processingLog');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -33,11 +34,15 @@ module.exports = {
           ticketId: order.ticket_id,
           buyerDiscordId: order.buyer_discord_id,
           robloxUsername: order.roblox_username,
+          robloxUserId: order.roblox_user_id,
           robuxAmount: order.robux_amount,
           priceRupiah: order.payment_amount ?? order.price_rupiah,
           confirmedByDiscordId: interaction.user.id,
         }),
       ],
     });
+
+    // Update channel log pesanan + CSV export (kalau fiturnya diaktifkan lewat .env)
+    await refreshProcessingLog(interaction.guild).catch((err) => console.error('[dana-masuk] Gagal update processing log:', err.message));
   },
 };

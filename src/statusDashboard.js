@@ -19,6 +19,7 @@ function buildStatusDashboardEmbed({ isOpen, activeOrdersCount, totalTransaction
         '📊 **Status Sistem & Statistik Toko**',
         'Dashboard ini otomatis memantau status toko, antrian order, dan statistik transaksi KokoKrunch Store secara real-time.',
         '',
+        `🤖 **Status Sistem :** ✅ \`ACTIVE\``,
         `🛒 **Toko :** ${statusBadge}  ${statusNote}`,
         `⏳ **Antrian Berjalan** · ${activeOrdersCount.toLocaleString('id-ID')} ticket sedang diproses`,
       ].join('\n')

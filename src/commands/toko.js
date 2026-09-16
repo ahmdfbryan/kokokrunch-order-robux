@@ -15,6 +15,13 @@ module.exports = {
         .setDescription('Pilih status toko')
         .setRequired(true)
         .addChoices({ name: '🟢 Buka', value: 'buka' }, { name: '🔴 Tutup', value: 'tutup' })
+    )
+    .addIntegerOption((option) =>
+      option
+        .setName('limit')
+        .setDescription('Batas jumlah ticket sesi ini (kosongkan = tanpa batas). Hanya berlaku saat Buka.')
+        .setRequired(false)
+        .setMinValue(1)
     ),
 
   async execute(interaction) {
@@ -27,7 +34,8 @@ module.exports = {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const wantOpen = interaction.options.getString('status', true) === 'buka';
-    db.setShopOpen({ isOpen: wantOpen, updatedBy: interaction.user.id });
+    const ticketLimit = interaction.options.getInteger('limit') ?? null;
+    db.setShopOpen({ isOpen: wantOpen, updatedBy: interaction.user.id, ticketLimit });
 
     let cancelledCount = 0;
     if (!wantOpen) {
@@ -42,6 +50,9 @@ module.exports = {
 
     const statusText = wantOpen ? '🟢 **BUKA**' : '🔴 **TUTUP**';
     let reply = `✅ Toko sekarang ${statusText}.`;
+    if (wantOpen) {
+      reply += ticketLimit ? `\n🎟️ Limit ticket sesi ini: **${ticketLimit}**.` : '\n🎟️ Tidak ada batas jumlah ticket untuk sesi ini.';
+    }
     if (cancelledCount > 0) {
       reply += `\n🧹 ${cancelledCount} ticket yang masih dalam antrian otomatis dibatalkan (hanya ticket yang sudah terbuat yang tetap ada).`;
     }

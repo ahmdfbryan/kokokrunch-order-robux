@@ -324,11 +324,13 @@ function markPaymentConfirmed({ ticketId, confirmedBy }) {
 /**
  * Semua order yang dana-nya sudah dikonfirmasi ("/dana-masuk") tapi ticket-nya
  * belum ditutup -- dipakai buat CSV export & channel log pesanan. Diurutkan
- * berdasarkan kapan dana-nya dikonfirmasi (urutan proses staff), bukan kapan
- * ticket dibuat.
+ * berdasarkan kapan TICKET-nya awal dibuat (urutan order asli masuk), BUKAN
+ * kapan dana dikonfirmasi -- supaya kalau ada 2+ staff konfirmasi bersamaan
+ * di ticket berbeda, urutan yang muncul tetap sesuai urutan pembeli order,
+ * bukan sesuai siapa staff yang lebih cepat mengonfirmasi.
  */
 const getQueuedOrdersForLogStmt = db.prepare(`
-  SELECT * FROM orders WHERE status = 'queued' AND closed_at IS NULL ORDER BY payment_confirmed_at ASC
+  SELECT * FROM orders WHERE status = 'queued' AND closed_at IS NULL ORDER BY created_at ASC
 `);
 function getQueuedOrdersForLog() {
   return getQueuedOrdersForLogStmt.all();

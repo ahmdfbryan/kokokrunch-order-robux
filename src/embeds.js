@@ -7,8 +7,9 @@ const COLOR_RED = 0xed4245;
 const COLOR_ORANGE = 0xffa500;
 const COLOR_GREEN = 0x57f287;
 
-function buildOrderPanelEmbed({ isOpen = true } = {}) {
+function buildOrderPanelEmbed({ isOpen = true, ticketLimit = null, ticketsCreated = 0 } = {}) {
   const statusLine = isOpen ? '🟢 **Status: BUKA** — silakan order!' : '🔴 **Status: TUTUP** — order sementara tidak bisa diproses';
+  const quotaLine = isOpen && ticketLimit ? `🎟️ **Sisa Slot:** ${Math.max(0, ticketLimit - ticketsCreated)} / ${ticketLimit}` : null;
   return new EmbedBuilder()
     .setColor(isOpen ? COLOR_BRAND : COLOR_RED)
     .setTitle('🛒 Top Up Robux — KokoKrunch Studios')
@@ -17,6 +18,7 @@ function buildOrderPanelEmbed({ isOpen = true } = {}) {
         'Selamat datang di layanan top up Robux resmi **KokoKrunch Studios**!',
         '',
         statusLine,
+        ...(quotaLine ? [quotaLine] : []),
         '',
         `💰 **Rate:** ${formatRupiah(config.rupiahPerRobux * 100)} / 100 Robux`,
         '⚡ **Proses:** Manual, dikonfirmasi admin setelah pembayaran QRIS',
@@ -112,7 +114,7 @@ function buildTicketCreatedEmbed({ channelId }) {
     .setDescription(`Ticket order kamu sudah dibuat: <#${channelId}>\n\nSilakan lanjutkan pembayaran di dalam ticket tersebut.`);
 }
 
-function buildTicketOrderEmbed({ ticketId, buyerDiscordId, robloxUsername, robuxAmount, priceRupiah, uniqueCode, paymentAmount, staffRoleId }) {
+function buildTicketOrderEmbed({ ticketId, buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah, uniqueCode, paymentAmount, staffRoleId }) {
   return new EmbedBuilder()
     .setColor(COLOR_BRAND)
     .setTitle('📦 Detail Pesanan')
@@ -120,6 +122,7 @@ function buildTicketOrderEmbed({ ticketId, buyerDiscordId, robloxUsername, robux
       { name: '🆔 Ticket ID', value: ticketId, inline: true },
       { name: '🙋 Pembeli', value: `<@${buyerDiscordId}>`, inline: true },
       { name: '👤 Username Roblox', value: robloxUsername, inline: true },
+      { name: '🔑 Player ID', value: robloxUserId ? String(robloxUserId) : '-', inline: true },
       { name: 'Jumlah Robux', value: `${robuxAmount.toLocaleString('id-ID')} Robux`, inline: true },
       { name: '💰 Harga', value: formatRupiah(priceRupiah), inline: true },
       { name: '🔢 Kode Unik', value: String(uniqueCode).padStart(3, '0'), inline: true },
@@ -170,7 +173,7 @@ function buildRequestPaymentProofEmbed({ ticketId, priceRupiah }) {
     .setTimestamp();
 }
 
-function buildPaymentConfirmedEmbed({ ticketId, buyerDiscordId, robloxUsername, robuxAmount, priceRupiah, confirmedByDiscordId }) {
+function buildPaymentConfirmedEmbed({ ticketId, buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah, confirmedByDiscordId }) {
   return new EmbedBuilder()
     .setColor(COLOR_GREEN)
     .setAuthor({ name: 'KokoKrunch Studios · Payment Update' })
@@ -179,6 +182,7 @@ function buildPaymentConfirmedEmbed({ ticketId, buyerDiscordId, robloxUsername, 
     .addFields(
       { name: '🆔 Ticket', value: ticketId, inline: true },
       { name: '👤 Roblox', value: robloxUsername, inline: true },
+      { name: '🔑 Player ID', value: robloxUserId ? String(robloxUserId) : '-', inline: true },
       { name: 'Robux', value: `${robuxAmount.toLocaleString('id-ID')} Robux`, inline: true },
       { name: '💵 Nominal', value: formatRupiah(priceRupiah), inline: true },
       { name: '📦 Status', value: '🟡 Dalam Antrian', inline: true },

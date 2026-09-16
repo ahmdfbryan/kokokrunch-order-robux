@@ -18,10 +18,10 @@ module.exports = {
       return;
     }
 
-    const isOpen = db.isShopOpen();
-    const message = await channel.send(buildOrderPanelMessagePayload(isOpen));
+    const settings = db.getShopSettings();
+    const message = await channel.send(buildOrderPanelMessagePayload(settings));
     db.setPanelMessage({ channelId: channel.id, messageId: message.id });
 
-    await interaction.editReply(`✅ Panel order berhasil dipasang di <#${channel.id}> (status saat ini: ${isOpen ? '🟢 Buka' : '🔴 Tutup'}).`);
+    await interaction.editReply(`✅ Panel order berhasil dipasang di <#${channel.id}> (status saat ini: ${settings.is_open === 1 ? '🟢 Buka' : '🔴 Tutup'}).`);
   },
 };

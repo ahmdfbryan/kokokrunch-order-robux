@@ -182,6 +182,48 @@ const markPaymentConfirmedStmt = db.prepare(`
   WHERE ticket_id = @ticketId
 `);
 
+const reopenOrderStmt = db.prepare(`
+  UPDATE orders
+  SET status = @status, progress_note = NULL, closed_at = NULL, closed_by_discord_id = NULL
+  WHERE ticket_id = @ticketId
+`);
+
+// Tanda khas order yang ditutup OTOMATIS oleh reconcile.js (BUKAN staff yang
+// nutup manual lewat tombol "Tutup Ticket"): closed_by_discord_id selalu NULL
+// dan progress_note-nya persis teks bawaan closeOrderAsDeleted di bawah.
+const RECONCILE_AUTOCLOSE_NOTE = 'Channel ticket dihapus manual (bukan lewat tombol Tutup Ticket), order ditutup otomatis oleh sistem.';
+const getReconcileAutoclosedOrdersStmt = db.prepare(`
+  SELECT * FROM orders
+  WHERE status = 'Cancelled' AND closed_by_discord_id IS NULL AND progress_note = ?
+  ORDER BY created_at ASC
+`);
+
+/**
+ * Ambil semua order yang ditutup OTOMATIS oleh reconcile.js (bukan staff
+ * manual) -- dipakai script pemulihan (scripts/fix-wrongly-closed-orders.js)
+ * untuk mengecek satu-satu apakah channel-nya BENERAN sudah hilang, atau
+ * dulu salah ditutup gara-gara bug rate-limit di reconcile.js versi lama.
+ */
+function getReconcileAutoclosedOrders() {
+  return getReconcileAutoclosedOrdersStmt.all(RECONCILE_AUTOCLOSE_NOTE);
+}
+
+/**
+ * Buka kembali order yang dulu SALAH ditutup otomatis (channel-nya ternyata
+ * masih ada). Status dikembalikan sesuai riwayat: kalau payment_confirmed_at
+ * sudah pernah terisi (berarti /dana-masuk sudah pernah dijalankan sebelum
+ * salah ditutup), balik ke 'queued' -- supaya langsung muncul lagi di channel
+ * log & CSV. Kalau belum pernah dikonfirmasi, balik ke 'pending' (masih
+ * nunggu staff konfirmasi dana).
+ */
+function reopenOrder(ticketId) {
+  const order = getByTicketIdStmt.get(ticketId);
+  if (!order) return { ok: false, reason: 'not_found' };
+  const status = order.payment_confirmed_at ? 'queued' : 'pending';
+  reopenOrderStmt.run({ ticketId, status });
+  return { ok: true, status };
+}
+
 function getOrderByChannelId(channelId) {
   return getByChannelStmt.get(channelId);
 }
@@ -494,6 +536,8 @@ module.exports = {
   getQueuedOrdersForLog,
   closeOrder,
   closeOrderAsDeleted,
+  getReconcileAutoclosedOrders,
+  reopenOrder,
   markPaymentConfirmed,
   getShopSettings,
   isShopOpen,

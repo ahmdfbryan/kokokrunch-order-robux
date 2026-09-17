@@ -70,6 +70,14 @@ if (!shopColumns.has('processing_log_message_id')) {
 if (!shopColumns.has('status_dashboard_message_id')) {
   db.exec(`ALTER TABLE shop_settings ADD COLUMN status_dashboard_message_id TEXT`);
 }
+// Log pesanan sekarang bisa kepecah jadi BEBERAPA pesan/embed kalau daftarnya
+// panjang (limit 4096 karakter per embed description dari Discord). Kolom lama
+// (processing_log_message_id) cuma nyimpen 1 ID, jadi kita simpan daftar ID
+// dalam bentuk JSON array di kolom baru ini. Kolom lama tetap dibiarkan ada
+// (tidak dihapus) supaya migrasi aman untuk deployment lama.
+if (!shopColumns.has('processing_log_message_ids')) {
+  db.exec(`ALTER TABLE shop_settings ADD COLUMN processing_log_message_ids TEXT`);
+}
 
 // Discord membatasi KERAS maksimal 50 channel per kategori. Kalau kategori
 // ticket utama (TICKET_CATEGORY_ID) penuh, bot otomatis bikin kategori
@@ -332,8 +340,13 @@ function markPaymentConfirmed({ ticketId, confirmedBy }) {
  * di ticket berbeda, urutan yang muncul tetap sesuai urutan pembeli order,
  * bukan sesuai siapa staff yang lebih cepat mengonfirmasi.
  */
+// Tiebreaker "rowid ASC" ditambahkan karena "created_at" cuma presisi
+// milidetik -- kalau ada 2+ ticket yang kebetulan dibuat di milidetik yang
+// sama persis (misal saat traffic rame), urutannya jadi tidak pasti/acak
+// tanpa tiebreaker ini. rowid SQLite otomatis naik sesuai urutan INSERT,
+// jadi dijamin selalu sesuai urutan ticket benar-benar dibuat.
 const getQueuedOrdersForLogStmt = db.prepare(`
-  SELECT * FROM orders WHERE status = 'queued' AND closed_at IS NULL ORDER BY created_at ASC
+  SELECT * FROM orders WHERE status = 'queued' AND closed_at IS NULL ORDER BY created_at ASC, rowid ASC
 `);
 function getQueuedOrdersForLog() {
   return getQueuedOrdersForLogStmt.all();
@@ -353,6 +366,9 @@ const setPanelMessageStmt = db.prepare(`
 `);
 const setProcessingLogMessageStmt = db.prepare(`
   UPDATE shop_settings SET processing_log_message_id = @messageId WHERE id = 1
+`);
+const setProcessingLogMessageIdsStmt = db.prepare(`
+  UPDATE shop_settings SET processing_log_message_ids = @messageIds WHERE id = 1
 `);
 const setStatusDashboardMessageStmt = db.prepare(`
   UPDATE shop_settings SET status_dashboard_message_id = @messageId WHERE id = 1
@@ -392,6 +408,30 @@ function setPanelMessage({ channelId, messageId }) {
 
 function setProcessingLogMessageId(messageId) {
   setProcessingLogMessageStmt.run({ messageId });
+}
+
+/**
+ * Ambil daftar message ID untuk log pesanan (bisa lebih dari 1 kalau daftarnya
+ * kepanjangan dan sudah kepecah jadi beberapa pesan). Fallback ke kolom lama
+ * (processing_log_message_id, satu ID) kalau kolom baru masih kosong -- supaya
+ * deployment lama yang baru pertama kali update tetap coba EDIT pesan lognya
+ * yang sudah ada dulu, bukan langsung bikin pesan baru dobel.
+ */
+function getProcessingLogMessageIds() {
+  const settings = getShopSettingsStmt.get();
+  if (settings.processing_log_message_ids) {
+    try {
+      const parsed = JSON.parse(settings.processing_log_message_ids);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (err) {
+      // JSON korup/tidak valid -- anggap saja kosong, biar bikin pesan baru.
+    }
+  }
+  return settings.processing_log_message_id ? [settings.processing_log_message_id] : [];
+}
+
+function setProcessingLogMessageIds(messageIds) {
+  setProcessingLogMessageIdsStmt.run({ messageIds: JSON.stringify(messageIds) });
 }
 
 function setStatusDashboardMessageId(messageId) {
@@ -460,6 +500,8 @@ module.exports = {
   setShopOpen,
   setPanelMessage,
   setProcessingLogMessageId,
+  getProcessingLogMessageIds,
+  setProcessingLogMessageIds,
   setStatusDashboardMessageId,
   getCompletedStats,
   getActiveOrdersCount,

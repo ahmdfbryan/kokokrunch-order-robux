@@ -41,6 +41,13 @@ if (!existingColumns.has('payment_amount')) {
 if (!existingColumns.has('roblox_user_id')) {
   db.exec(`ALTER TABLE orders ADD COLUMN roblox_user_id TEXT`);
 }
+// "No Tiket" yang ditampilkan ke pembeli (001, 002, dst) -- nomor urut dalam
+// SATU sesi toko dibuka, reset ke 1 tiap kali /toko status:Buka dijalankan.
+// Order lama (sebelum fitur ini ada) akan punya nilai NULL di kolom ini,
+// ditampilkan sebagai "-" (lihat formatSessionTicketNumber di util.js).
+if (!existingColumns.has('session_ticket_number')) {
+  db.exec(`ALTER TABLE orders ADD COLUMN session_ticket_number INTEGER`);
+}
 
 // Tabel settings satu baris untuk status buka/tutup toko + lokasi pesan panel
 // (dipakai supaya command /toko bisa langsung EDIT pesan panel yang sudah
@@ -151,8 +158,8 @@ db.exec(`
 `);
 
 const insertOrderStmt = db.prepare(`
-  INSERT INTO orders (ticket_id, channel_id, buyer_discord_id, roblox_username, roblox_user_id, robux_amount, price_rupiah, unique_code, payment_amount, status, created_at)
-  VALUES (@ticketId, @channelId, @buyerDiscordId, @robloxUsername, @robloxUserId, @robuxAmount, @priceRupiah, @uniqueCode, @paymentAmount, 'pending', @createdAt)
+  INSERT INTO orders (ticket_id, channel_id, buyer_discord_id, roblox_username, roblox_user_id, robux_amount, price_rupiah, unique_code, payment_amount, status, created_at, session_ticket_number)
+  VALUES (@ticketId, @channelId, @buyerDiscordId, @robloxUsername, @robloxUserId, @robuxAmount, @priceRupiah, @uniqueCode, @paymentAmount, 'pending', @createdAt, @sessionTicketNumber)
 `);
 
 const getByChannelStmt = db.prepare(`SELECT * FROM orders WHERE channel_id = ?`);
@@ -254,7 +261,7 @@ function getOpenOrderByRobloxUsername(robloxUsername) {
  * masih terbuka, (2) cek & kunci kuota ticket per sesi buka toko kalau
  * ada batasnya (lihat /toko status:Buka limit:N).
  *
- * @returns {{ ok: true, ticketId: string, uniqueCode: number, paymentAmount: number, limitJustReached: boolean }
+ * @returns {{ ok: true, ticketId: string, uniqueCode: number, paymentAmount: number, limitJustReached: boolean, sessionTicketNumber: number }
  *          | { ok: false, reason: 'buyer'|'roblox'|'limit', existingOrder?: object }}
  */
 function reserveOrder({ buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah }) {
@@ -265,12 +272,17 @@ function reserveOrder({ buyerDiscordId, robloxUsername, robloxUserId, robuxAmoun
   if (existingByRoblox) return { ok: false, reason: 'roblox', existingOrder: existingByRoblox };
 
   const settings = getShopSettingsStmt.get();
-  let limitJustReached = false;
   if (settings.ticket_limit !== null && settings.ticket_limit !== undefined) {
     if (settings.tickets_created_since_open >= settings.ticket_limit) {
       return { ok: false, reason: 'limit' };
     }
   }
+  // "No Tiket" yang ditampilkan ke pembeli -- nomor urut dalam sesi toko
+  // dibuka SEKARANG ini, dihitung dari counter yang sama dengan kuota
+  // (tickets_created_since_open), TAPI sekarang counter ini SELALU naik
+  // setiap order berhasil dibuat, terlepas dari apakah staff pasang limit
+  // kuota atau tidak (dulu cuma naik kalau ada limit terpasang).
+  const sessionTicketNumber = settings.tickets_created_since_open + 1;
 
   const MAX_ATTEMPTS = 50;
   let ticketId, uniqueCode, paymentAmount, foundFreeSlot = false;
@@ -306,6 +318,7 @@ function reserveOrder({ buyerDiscordId, robloxUsername, robloxUserId, robuxAmoun
       uniqueCode,
       paymentAmount,
       createdAt: Date.now(),
+      sessionTicketNumber,
     });
   } catch (err) {
     // Jaring pengaman terakhir: kalau constraint UNIK di database yang
@@ -321,17 +334,16 @@ function reserveOrder({ buyerDiscordId, robloxUsername, robloxUserId, robuxAmoun
     throw new Error(`Gagal generate ticket ID unik setelah ${MAX_ATTEMPTS} percobaan: ${err.message}`);
   }
 
-  // Kalau ada limit ticket per sesi, naikkan counter-nya sekarang (bagian dari
-  // langkah atomik yang sama), dan tandai kalau limit baru saja tercapai
-  // persis di reservasi ini -- pemanggil (amountSelect.js) akan pakai flag ini
-  // buat otomatis nutup tombol "Beli Robux" setelah ticket ini selesai dibuat.
-  if (settings.ticket_limit !== null && settings.ticket_limit !== undefined) {
-    const newCount = settings.tickets_created_since_open + 1;
-    db.prepare(`UPDATE shop_settings SET tickets_created_since_open = @newCount WHERE id = 1`).run({ newCount });
-    limitJustReached = newCount >= settings.ticket_limit;
-  }
+  // Naikkan counter "No Tiket" sesi ini sekarang (bagian dari langkah atomik
+  // yang sama) -- SELALU naik setiap order berhasil dibuat, baik ada limit
+  // kuota terpasang atau tidak. Kalau ada limit dan reservasi ini yang bikin
+  // kuota tercapai, tandai lewat limitJustReached -- pemanggil (amountSelect.js)
+  // akan pakai flag ini buat otomatis nutup tombol "Beli Robux".
+  db.prepare(`UPDATE shop_settings SET tickets_created_since_open = @newCount WHERE id = 1`).run({ newCount: sessionTicketNumber });
+  const limitJustReached =
+    settings.ticket_limit !== null && settings.ticket_limit !== undefined ? sessionTicketNumber >= settings.ticket_limit : false;
 
-  return { ok: true, ticketId, uniqueCode, paymentAmount, limitJustReached };
+  return { ok: true, ticketId, uniqueCode, paymentAmount, limitJustReached, sessionTicketNumber };
 }
 
 /** Tempel channel_id asli ke order yang tadinya cuma "PENDING" (dipanggil setelah channel berhasil dibuat). */

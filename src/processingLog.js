@@ -1,7 +1,7 @@
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const config = require('./config');
 const db = require('./db');
-const { formatPlayerId } = require('./util');
+const { formatPlayerId, formatSessionTicketNumber } = require('./util');
 
 const COLOR_BRAND = 0x5865f2;
 
@@ -26,8 +26,10 @@ function csvEscape(value) {
  * berdasarkan kapan ticket-nya awal dibuat).
  */
 function buildCsvContent(orders) {
-  const header = 'Username,PlayerID,JumlahRobux';
-  const rows = orders.map((o) => [csvEscape(o.roblox_username), csvEscape(formatPlayerId(o.roblox_user_id)), csvEscape(o.robux_amount)].join(','));
+  const header = 'NoTiket,Username,PlayerID,JumlahRobux';
+  const rows = orders.map((o) =>
+    [csvEscape(formatSessionTicketNumber(o.session_ticket_number)), csvEscape(o.roblox_username), csvEscape(formatPlayerId(o.roblox_user_id)), csvEscape(o.robux_amount)].join(',')
+  );
   return [header, ...rows].join('\n');
 }
 

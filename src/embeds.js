@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const config = require('./config');
-const { formatRupiah, maskUsername, formatPlayerId } = require('./util');
+const { formatRupiah, maskUsername, formatPlayerId, formatSessionTicketNumber } = require('./util');
 
 const COLOR_BRAND = 0x5865f2;
 const COLOR_RED = 0xed4245;
@@ -114,11 +114,12 @@ function buildTicketCreatedEmbed({ channelId }) {
     .setDescription(`Ticket order kamu sudah dibuat: <#${channelId}>\n\nSilakan lanjutkan pembayaran di dalam ticket tersebut.`);
 }
 
-function buildTicketOrderEmbed({ ticketId, buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah, uniqueCode, paymentAmount, staffRoleId }) {
+function buildTicketOrderEmbed({ ticketId, sessionTicketNumber, buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah, uniqueCode, paymentAmount, staffRoleId }) {
   return new EmbedBuilder()
     .setColor(COLOR_BRAND)
     .setTitle('📦 Detail Pesanan')
     .addFields(
+      { name: '🎫 No Tiket', value: formatSessionTicketNumber(sessionTicketNumber), inline: true },
       { name: '🆔 Ticket ID', value: ticketId, inline: true },
       { name: '🙋 Pembeli', value: `<@${buyerDiscordId}>`, inline: true },
       { name: '👤 Username Roblox', value: robloxUsername, inline: true },
@@ -195,13 +196,14 @@ function buildRequestPaymentProofEmbed({ ticketId, priceRupiah }) {
     .setTimestamp();
 }
 
-function buildPaymentConfirmedEmbed({ ticketId, buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah, confirmedByDiscordId }) {
+function buildPaymentConfirmedEmbed({ ticketId, sessionTicketNumber, buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah, confirmedByDiscordId }) {
   return new EmbedBuilder()
     .setColor(COLOR_GREEN)
     .setAuthor({ name: 'KokoKrunch Studios · Payment Update' })
     .setTitle('💸 Dana Masuk — Pesanan Masuk Antrian')
     .setDescription(`Pembayaran untuk pesanan **${ticketId}** telah dikonfirmasi oleh staff. Pesanan kamu sekarang masuk antrian proses. 🚀`)
     .addFields(
+      { name: '🎫 No Tiket', value: formatSessionTicketNumber(sessionTicketNumber), inline: true },
       { name: '🆔 Ticket', value: ticketId, inline: true },
       { name: '👤 Roblox', value: robloxUsername, inline: true },
       { name: '🔑 Player ID', value: formatPlayerId(robloxUserId), inline: true },

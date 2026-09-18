@@ -49,4 +49,16 @@ function formatPlayerId(robloxUserId) {
   return String(robloxUserId).replace(/\.0$/, '');
 }
 
-module.exports = { formatRupiah, maskUsername, slugifyChannelName, toButtonEmoji, formatPlayerId };
+/**
+ * Format nomor urut ticket dalam SATU sesi buka-toko (reset ke 1 tiap kali
+ * /toko status:Buka dijalankan) jadi "001", "002", dst -- minimal 3 digit,
+ * tapi tetap tampil lengkap kalau lebih dari 999 (misal "1000", bukan
+ * "1000" dipotong). Order lama dari sebelum fitur ini ada tidak punya nomor
+ * ini (null di database), jadi ditampilkan "-" biar jelas bukan angka 0.
+ */
+function formatSessionTicketNumber(sessionTicketNumber) {
+  if (sessionTicketNumber === null || sessionTicketNumber === undefined) return '-';
+  return String(sessionTicketNumber).padStart(3, '0');
+}
+
+module.exports = { formatRupiah, maskUsername, slugifyChannelName, toButtonEmoji, formatPlayerId, formatSessionTicketNumber };

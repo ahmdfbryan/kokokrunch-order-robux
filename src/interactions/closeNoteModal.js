@@ -28,11 +28,17 @@ async function handle(interaction) {
 
   // Kalau order ini sebelumnya sempat masuk channel log pesanan (sudah pernah
   // /dana-masuk), sekarang otomatis hilang dari daftar & CSV karena sudah ditutup.
-  await refreshProcessingLog(interaction.guild).catch((err) => console.error('[Close] Gagal update processing log:', err.message));
+  // Dijalankan di BELAKANG LAYAR (tidak di-"await" di sini) -- sejak daftar log
+  // bisa kepecah jadi beberapa pesan (lihat processingLog.js), proses ini bisa
+  // butuh beberapa kali panggilan API Discord berurutan kalau antriannya lagi
+  // panjang. Kalau ditunggu (await) di sini, staff yang nutup ticket akan
+  // kelihatan "loading" lama padahal ticketnya sendiri sudah beres ditutup --
+  // jadi balasan ke staff (editReply di bawah) TIDAK perlu menunggu ini selesai.
+  refreshProcessingLog(interaction.guild).catch((err) => console.error('[Close] Gagal update processing log:', err.message));
 
-  // Update dashboard status publik (kalau fiturnya diaktifkan) -- statistik
-  // total transaksi/robux & antrian aktif berubah begitu ticket ini ditutup.
-  await refreshStatusDashboard(interaction.guild).catch((err) => console.error('[Close] Gagal update status dashboard:', err.message));
+  // Sama seperti di atas -- update dashboard status publik juga tidak perlu
+  // ditunggu, tidak memengaruhi balasan yang dilihat staff.
+  refreshStatusDashboard(interaction.guild).catch((err) => console.error('[Close] Gagal update status dashboard:', err.message));
 
   const reviewEmbed = buildReviewEmbed({
     ticketId,

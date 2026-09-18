@@ -69,7 +69,7 @@ async function handle(interaction) {
     return;
   }
 
-  const { ticketId, uniqueCode, paymentAmount, limitJustReached } = reservation;
+  const { ticketId, uniqueCode, paymentAmount, limitJustReached, sessionTicketNumber } = reservation;
 
   // Kalau reservasi ini yang bikin kuota ticket sesi ini tercapai, langsung
   // tutup tombol "Beli Robux" di panel SEKARANG (bukan nunggu staff /toko
@@ -102,6 +102,7 @@ async function handle(interaction) {
       ticketId,
       uniqueCode,
       paymentAmount,
+      sessionTicketNumber,
       guild: interaction.guild,
       buyerUser: interaction.user,
       robloxUsername: pending.robloxUsername,

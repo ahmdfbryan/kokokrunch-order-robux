@@ -32,6 +32,7 @@ module.exports = {
       embeds: [
         buildPaymentConfirmedEmbed({
           ticketId: order.ticket_id,
+          sessionTicketNumber: order.session_ticket_number,
           buyerDiscordId: order.buyer_discord_id,
           robloxUsername: order.roblox_username,
           robloxUserId: order.roblox_user_id,

@@ -9,15 +9,15 @@ const { withDiscordRetry } = require('./discordRetry');
 const { getAvailableTicketCategory } = require('./categoryManager');
 const { refreshStatusDashboard } = require('./statusDashboard');
 
-async function createOrderTicket({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah }) {
+async function createOrderTicket({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah, sessionTicketNumber }) {
   // Semua pembuatan channel diantre supaya tidak "nembak" Discord API secara
   // bersamaan kalau lagi diserbu banyak order sekaligus.
   return ticketQueue.enqueue(() =>
-    createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah })
+    createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah, sessionTicketNumber })
   );
 }
 
-async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah }) {
+async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild, buyerUser, robloxUsername, robloxUserId, robuxAmount, priceRupiah, sessionTicketNumber }) {
   const ticketCode = ticketId.split('-')[1]; // 5 karakter unik dari ticket ID, contoh: LW102
 
   const categoryId = await getAvailableTicketCategory(guild);
@@ -57,6 +57,7 @@ async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild
 
   const orderEmbed = buildTicketOrderEmbed({
     ticketId,
+    sessionTicketNumber,
     buyerDiscordId: buyerUser.id,
     robloxUsername,
     robloxUserId,

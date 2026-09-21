@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const config = require('../config');
 const db = require('../db');
 const { buildPaymentConfirmedEmbed } = require('../embeds');
@@ -27,6 +27,14 @@ module.exports = {
 
     db.markPaymentConfirmed({ ticketId: order.ticket_id, confirmedBy: interaction.user.id });
 
+    // Tombol Tutup Ticket juga ditaruh di sini (sama seperti di pesan awal
+    // ticket) -- customId-nya cuma butuh ticketId, jadi handler yang sama
+    // (closeTicketButton.js) langsung jalan tanpa perlu perubahan apapun di
+    // sana, mempermudah staff nutup ticket tanpa harus scroll ke pesan awal.
+    const closeRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`close_ticket:${order.ticket_id}`).setLabel('Tutup Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
+    );
+
     await interaction.reply({
       content: `<@${order.buyer_discord_id}>`,
       embeds: [
@@ -41,6 +49,7 @@ module.exports = {
           confirmedByDiscordId: interaction.user.id,
         }),
       ],
+      components: [closeRow],
     });
 
     // Update channel log pesanan + CSV export (kalau fiturnya diaktifkan lewat .env)

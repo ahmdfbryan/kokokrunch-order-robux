@@ -28,6 +28,18 @@ async function handle(interaction) {
     // memang masih pakai harga polos, jadi ini tetap akurat buat ticket lama.
     embeds: [buildRequestPaymentProofEmbed({ ticketId, priceRupiah: order.payment_amount ?? order.price_rupiah })],
   });
+
+  // Hapus pesan embed "Batas Waktu Pembayaran" otomatis begitu tombol ini
+  // diklik -- sudah tidak relevan lagi (pembeli sudah konfirmasi). TIDAK
+  // di-`await` (fire-and-forget) supaya tidak menunda balasan di atas, dan
+  // TANPA fallback apapun kalau gagal (misal sudah terhapus manual sebelumnya,
+  // atau tombol diklik lebih dari sekali) -- cuma dicatat di log untuk debug.
+  if (order.payment_deadline_message_id) {
+    interaction.channel.messages
+      .fetch(order.payment_deadline_message_id)
+      .then((message) => message.delete())
+      .catch((err) => console.warn(`[ConfirmPayment] Gagal hapus pesan batas waktu ticket ${ticketId} (mungkin sudah terhapus):`, err.message));
+  }
 }
 
 module.exports = { customIdPrefix: CUSTOM_ID_PREFIX, handle };

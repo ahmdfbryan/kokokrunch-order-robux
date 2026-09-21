@@ -2,7 +2,7 @@ const { PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, Butto
 const config = require('./config');
 const db = require('./db');
 const { generateQrisImageBuffer } = require('./qris');
-const { buildTicketOrderEmbed, buildDmTicketCreatedEmbed } = require('./embeds');
+const { buildTicketOrderEmbed, buildDmTicketCreatedEmbed, buildPaymentDeadlineEmbed } = require('./embeds');
 const { slugifyChannelName } = require('./util');
 const ticketQueue = require('./ticketQueue');
 const { withDiscordRetry } = require('./discordRetry');
@@ -82,6 +82,17 @@ async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild
         components: [closeRow],
       }),
     { context: `kirim pesan awal ticket ${ticketId}` }
+  );
+
+  // Kirim info batas waktu pembayaran (30 menit) sebagai pesan TERPISAH,
+  // tepat setelah "Detail Pesanan". Pakai timestamp Discord (<t:...:R>) yang
+  // otomatis hitung mundur sendiri di sisi client -- tidak perlu bot edit
+  // pesan ini lagi nantinya, dan TIDAK ada tindakan otomatis apapun kalau
+  // waktunya lewat (murni informasi buat pembeli).
+  const deadlineUnixSeconds = Math.floor((Date.now() + 30 * 60 * 1000) / 1000);
+  await withDiscordRetry(
+    () => channel.send({ embeds: [buildPaymentDeadlineEmbed({ deadlineUnixSeconds })] }),
+    { context: `kirim info batas waktu pembayaran ticket ${ticketId}` }
   );
 
   // Kirim notifikasi DM ke pembeli kalau ticket-nya berhasil dibuat. Sengaja

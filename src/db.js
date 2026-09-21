@@ -48,6 +48,11 @@ if (!existingColumns.has('roblox_user_id')) {
 if (!existingColumns.has('session_ticket_number')) {
   db.exec(`ALTER TABLE orders ADD COLUMN session_ticket_number INTEGER`);
 }
+// ID pesan embed "Batas Waktu Pembayaran" -- disimpan supaya bisa dihapus
+// otomatis begitu pembeli/staff klik tombol "Konfirmasi Pembayaran".
+if (!existingColumns.has('payment_deadline_message_id')) {
+  db.exec(`ALTER TABLE orders ADD COLUMN payment_deadline_message_id TEXT`);
+}
 
 // Tabel settings satu baris untuk status buka/tutup toko + lokasi pesan panel
 // (dipakai supaya command /toko bisa langsung EDIT pesan panel yang sudah
@@ -176,6 +181,7 @@ const getOpenOrderByPaymentAmountStmt = db.prepare(`
 const getAllOpenOrdersStmt = db.prepare(`SELECT * FROM orders WHERE closed_at IS NULL`);
 
 const updateOrderChannelStmt = db.prepare(`UPDATE orders SET channel_id = @channelId WHERE ticket_id = @ticketId`);
+const setPaymentDeadlineMessageIdStmt = db.prepare(`UPDATE orders SET payment_deadline_message_id = @messageId WHERE ticket_id = @ticketId`);
 
 const closeOrderStmt = db.prepare(`
   UPDATE orders
@@ -349,6 +355,11 @@ function reserveOrder({ buyerDiscordId, robloxUsername, robloxUserId, robuxAmoun
 /** Tempel channel_id asli ke order yang tadinya cuma "PENDING" (dipanggil setelah channel berhasil dibuat). */
 function updateOrderChannel({ ticketId, channelId }) {
   updateOrderChannelStmt.run({ ticketId, channelId });
+}
+
+/** Simpan ID pesan embed "Batas Waktu Pembayaran" -- dipakai buat menghapusnya otomatis nanti. */
+function setPaymentDeadlineMessageId({ ticketId, messageId }) {
+  setPaymentDeadlineMessageIdStmt.run({ ticketId, messageId });
 }
 
 /** Semua order yang masih berstatus terbuka -- dipakai untuk sweep saat bot start. */
@@ -544,6 +555,7 @@ module.exports = {
   getOpenOrderByRobloxUsername,
   reserveOrder,
   updateOrderChannel,
+  setPaymentDeadlineMessageId,
   getAllOpenOrders,
   getQueuedOrdersForLog,
   closeOrder,

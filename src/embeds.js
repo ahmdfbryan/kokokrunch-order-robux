@@ -159,6 +159,27 @@ function buildTicketOrderEmbed({ ticketId, sessionTicketNumber, buyerDiscordId, 
     .setTimestamp();
 }
 
+/**
+ * Info batas waktu pembayaran (30 menit), dikirim sebagai pesan TERPISAH
+ * setelah "Detail Pesanan". Pakai format timestamp Discord (<t:...:F> dan
+ * <t:...:R>) supaya hitung mundurnya otomatis update sendiri di sisi
+ * Discord (client-side) tanpa bot perlu edit pesan berulang-ulang. TIDAK
+ * ada tindakan otomatis apapun kalau waktunya lewat -- murni informasi.
+ */
+function buildPaymentDeadlineEmbed({ deadlineUnixSeconds }) {
+  return new EmbedBuilder()
+    .setColor(COLOR_ORANGE)
+    .setTitle('⏰ Batas Waktu Pembayaran')
+    .setDescription(
+      'Silakan selesaikan pembayaran sebelum waktu berikut:\n' +
+      `🕐 <t:${deadlineUnixSeconds}:F> (<t:${deadlineUnixSeconds}:R>)\n\n` +
+      '⚠️ Kalau kamu **sudah** melakukan konfirmasi pembayaran dan mengirim bukti transfer, silakan **abaikan pesan ini**. ' +
+      'Cukup lakukan konfirmasi & kirim bukti **satu kali saja**, tidak perlu diulang.\n\n' +
+      'ℹ️ Catatan: setelah batas waktu di atas terlewati, **tidak ada tindakan otomatis** dari sistem — ticket ini tetap akan diproses oleh staff seperti biasa.'
+    )
+    .setFooter({ text: 'KokoKrunch Studios · Order Robux' });
+}
+
 function buildReviewEmbed({ ticketId, robloxUsername, robuxAmount, status, progressNote }) {
   const statusPresets = {
     Completed: {
@@ -245,6 +266,7 @@ module.exports = {
   buildTicketCreatedEmbed,
   buildDmTicketCreatedEmbed,
   buildTicketOrderEmbed,
+  buildPaymentDeadlineEmbed,
   buildReviewEmbed,
   buildRequestPaymentProofEmbed,
   buildPaymentConfirmedEmbed,

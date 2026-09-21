@@ -238,7 +238,7 @@ function buildPaymentConfirmedEmbed({ ticketId, sessionTicketNumber, buyerDiscor
     .setColor(COLOR_GREEN)
     .setAuthor({ name: 'KokoKrunch Studios · Payment Update' })
     .setTitle('💸 Dana Masuk — Pesanan Masuk Antrian')
-    .setDescription(`Pembayaran untuk pesanan **${ticketId}** telah dikonfirmasi oleh staff. Pesanan kamu sekarang masuk antrian proses. 🚀`)
+    .setDescription(`Pembayaran untuk pesanan **${ticketId}** telah dikonfirmasi oleh staff. Pesanan kamu sekarang masuk antrian dan akan diproses 1-4 Hari sesuai informasi yang telah diberikan. 🚀`)
     .addFields(
       { name: '🎫 No Tiket', value: formatSessionTicketNumber(sessionTicketNumber), inline: true },
       { name: '🆔 Ticket', value: ticketId, inline: true },

@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const config = require('./config');
 const db = require('./db');
+const { serializeAsync } = require('./asyncQueue');
 
 const COLOR_GOLD = 0xf2c94c;
 const COLOR_RED = 0xed4245;
@@ -39,7 +40,7 @@ function buildStatusDashboardEmbed({ isOpen, activeOrdersCount, totalTransaction
  * baru dibuat, ticket ditutup, atau toko dibuka/ditutup lewat /toko. Aman
  * di-skip diam-diam kalau STATUS_DASHBOARD_CHANNEL_ID belum diisi di .env.
  */
-async function refreshStatusDashboard(guild) {
+async function refreshStatusDashboardInternal(guild) {
   if (!config.statusDashboardChannelId) return { refreshed: false, reason: 'not_configured' };
 
   const settings = db.getShopSettings();
@@ -74,5 +75,10 @@ async function refreshStatusDashboard(guild) {
     return { refreshed: false, reason: 'error' };
   }
 }
+
+// Diantre sama seperti refreshProcessingLog -- mencegah 2+ panggilan yang
+// jalan hampir bersamaan (banyak ticket dikonfirmasi/ditutup berurutan cepat)
+// saling tabrakan baca/tulis pesan dashboard yang sama.
+const refreshStatusDashboard = serializeAsync(refreshStatusDashboardInternal);
 
 module.exports = { refreshStatusDashboard, buildStatusDashboardEmbed };

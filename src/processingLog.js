@@ -2,6 +2,7 @@ const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const config = require('./config');
 const db = require('./db');
 const { formatPlayerId, formatSessionTicketNumber } = require('./util');
+const { serializeAsync } = require('./asyncQueue');
 
 const COLOR_BRAND = 0x5865f2;
 
@@ -113,7 +114,7 @@ function buildLogEmbeds(orders) {
  * yang jadi kelebihan otomatis dihapus supaya channel log tidak numpuk pesan
  * usang.
  */
-async function refreshProcessingLog(guild) {
+async function refreshProcessingLogInternal(guild) {
   if (!config.processingLogChannelId) return { refreshed: false, reason: 'not_configured' };
 
   const orders = db.getQueuedOrdersForLog();
@@ -167,5 +168,13 @@ async function refreshProcessingLog(guild) {
     return { refreshed: false, reason: 'error' };
   }
 }
+
+// Dibungkus dengan serializeAsync supaya kalau ada beberapa staff nutup/
+// konfirmasi ticket hampir bersamaan (masing-masing memicu refresh ini TANPA
+// menunggunya, lihat closeNoteModal.js), semua panggilan tetap jalan
+// satu-persatu berurutan -- tidak akan ada lagi 2 refresh yang saling
+// tabrakan edit/hapus pesan channel log di waktu bersamaan (itu penyebab
+// bug "bagian log kehapus/rusak" yang dilaporkan).
+const refreshProcessingLog = serializeAsync(refreshProcessingLogInternal);
 
 module.exports = { refreshProcessingLog, buildCsvContent, buildLogEmbeds };

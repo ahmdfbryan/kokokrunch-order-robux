@@ -87,9 +87,11 @@ async function handle(interaction) {
   if (positionAhead > 0) {
     await interaction.update({
       content:
-        '🔄 Sedang mengecek ketersediaan tiket...\n' +
-        'Sistem sedang memproses permintaan kamu dan mengecek antrean secara otomatis.\n\n' +
-        'Mohon tunggu sampai proses pengecekan selesai dan tidak melakukan klik ulang tombol selama proses berlangsung.',
+        '🔄 Sedang memproses ticket...\n\n' +
+        'Sistem sedang mengecek ketersediaan dan memproses antrean secara otomatis. Proses ini mungkin membutuhkan sedikit waktu.\n\n' +
+        '⏳ Mohon tunggu hingga ticket berhasil dibuat.\n' +
+        '⚠️ **Jangan klik ulang tombol Beli Robux atau menutup channel order ini** selama proses berlangsung.\n\n' +
+        'Terima kasih atas kesabarannya! 🙏',
       embeds: [],
       components: [],
     });

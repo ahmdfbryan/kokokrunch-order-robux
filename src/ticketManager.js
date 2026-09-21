@@ -90,10 +90,13 @@ async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild
   // pesan ini lagi nantinya, dan TIDAK ada tindakan otomatis apapun kalau
   // waktunya lewat (murni informasi buat pembeli).
   const deadlineUnixSeconds = Math.floor((Date.now() + 30 * 60 * 1000) / 1000);
-  await withDiscordRetry(
+  const deadlineMessage = await withDiscordRetry(
     () => channel.send({ embeds: [buildPaymentDeadlineEmbed({ deadlineUnixSeconds })] }),
     { context: `kirim info batas waktu pembayaran ticket ${ticketId}` }
   );
+  // Simpan ID pesan ini supaya bisa dihapus otomatis nanti begitu tombol
+  // "Konfirmasi Pembayaran" diklik (lihat confirmPaymentButton.js).
+  db.setPaymentDeadlineMessageId({ ticketId, messageId: deadlineMessage.id });
 
   // Kirim notifikasi DM ke pembeli kalau ticket-nya berhasil dibuat. Sengaja
   // TIDAK di-`await` (fire-and-forget) -- kalau DM lambat terkirim atau gagal

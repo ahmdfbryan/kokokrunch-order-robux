@@ -173,8 +173,8 @@ function buildPaymentDeadlineEmbed({ deadlineUnixSeconds }) {
     .setDescription(
       'Silakan selesaikan pembayaran sebelum waktu berikut:\n\n' +
       `🕐 <t:${deadlineUnixSeconds}:F> (<t:${deadlineUnixSeconds}:R>)\n\n` +
-      '⚠️ Kalau kamu **sudah** melakukan konfirmasi pembayaran dan mengirim bukti transfer, silakan **abaikan pesan ini**. ' +
-      'Cukup lakukan konfirmasi & kirim bukti **satu kali saja**, tidak perlu diulang.'
+      '⚠️ Kalau kamu **sudah** melakukan konfirmasi pembayaran dan mengirim bukti transfer, ' +
+      'cukup lakukan konfirmasi & kirim bukti **satu kali saja**, tidak perlu kirim berulang.'
     )
     .setFooter({ text: 'KokoKrunch Studios · Order Robux' });
 }

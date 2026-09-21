@@ -2,7 +2,7 @@ const { PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, Butto
 const config = require('./config');
 const db = require('./db');
 const { generateQrisImageBuffer } = require('./qris');
-const { buildTicketOrderEmbed } = require('./embeds');
+const { buildTicketOrderEmbed, buildDmTicketCreatedEmbed } = require('./embeds');
 const { slugifyChannelName } = require('./util');
 const ticketQueue = require('./ticketQueue');
 const { withDiscordRetry } = require('./discordRetry');
@@ -83,6 +83,18 @@ async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild
       }),
     { context: `kirim pesan awal ticket ${ticketId}` }
   );
+
+  // Kirim notifikasi DM ke pembeli kalau ticket-nya berhasil dibuat. Sengaja
+  // TIDAK di-`await` (fire-and-forget) -- kalau DM lambat terkirim atau gagal
+  // (misal pembeli menutup DM dari anggota server, atau belum pernah kirim
+  // pesan ke bot), ini TIDAK BOLEH ikut menahan antrian pembuatan ticket lain
+  // (lihat ticketQueue.js: tugas diproses satu-satu, jadi apapun yang di-await
+  // di sini menunda ticket pembeli BERIKUTNYA). Sengaja juga TANPA fallback
+  // apapun kalau gagal -- cuma dicatat di log untuk keperluan debug, sesuai
+  // permintaan.
+  buyerUser
+    .send({ embeds: [buildDmTicketCreatedEmbed({ ticketId, sessionTicketNumber, channelUrl: channel.url })] })
+    .catch((err) => console.warn(`[Ticket] Gagal kirim DM ticket dibuat ke ${buyerUser.tag} (kemungkinan DM ditutup):`, err.message));
 
   // Update dashboard status publik (kalau fiturnya diaktifkan lewat .env) --
   // ticket baru ini mengubah angka "antrian berjalan" & sisa stock.

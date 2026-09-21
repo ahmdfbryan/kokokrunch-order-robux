@@ -114,6 +114,23 @@ function buildTicketCreatedEmbed({ channelId }) {
     .setDescription(`Ticket order kamu sudah dibuat: <#${channelId}>\n\nSilakan lanjutkan pembayaran di dalam ticket tersebut.`);
 }
 
+/** Notifikasi DM ke pembeli begitu ticket order-nya berhasil dibuat. */
+function buildDmTicketCreatedEmbed({ ticketId, sessionTicketNumber, channelUrl }) {
+  return new EmbedBuilder()
+    .setColor(COLOR_GREEN)
+    .setTitle('🎫 Ticket Order Berhasil Dibuat')
+    .setDescription(
+      `Ticket order Robux kamu di **KokoKrunch Studios** sudah berhasil dibuat.\n\n` +
+      `Silakan lanjutkan ke channel ticket kamu untuk menyelesaikan pembayaran:\n${channelUrl}`
+    )
+    .addFields(
+      { name: '🎫 No Tiket', value: formatSessionTicketNumber(sessionTicketNumber), inline: true },
+      { name: '🆔 Ticket ID', value: ticketId, inline: true }
+    )
+    .setFooter({ text: 'KokoKrunch Studios · Order Robux' })
+    .setTimestamp();
+}
+
 function buildTicketOrderEmbed({ ticketId, sessionTicketNumber, buyerDiscordId, robloxUsername, robloxUserId, robuxAmount, priceRupiah, uniqueCode, paymentAmount, staffRoleId }) {
   return new EmbedBuilder()
     .setColor(COLOR_BRAND)
@@ -226,6 +243,7 @@ module.exports = {
   buildRobloxErrorEmbed,
   buildEligibleSelectAmountEmbed,
   buildTicketCreatedEmbed,
+  buildDmTicketCreatedEmbed,
   buildTicketOrderEmbed,
   buildReviewEmbed,
   buildRequestPaymentProofEmbed,

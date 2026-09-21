@@ -171,11 +171,10 @@ function buildPaymentDeadlineEmbed({ deadlineUnixSeconds }) {
     .setColor(COLOR_ORANGE)
     .setTitle('⏰ Batas Waktu Pembayaran')
     .setDescription(
-      'Silakan selesaikan pembayaran sebelum waktu berikut:\n' +
+      'Silakan selesaikan pembayaran sebelum waktu berikut:\n\n' +
       `🕐 <t:${deadlineUnixSeconds}:F> (<t:${deadlineUnixSeconds}:R>)\n\n` +
       '⚠️ Kalau kamu **sudah** melakukan konfirmasi pembayaran dan mengirim bukti transfer, silakan **abaikan pesan ini**. ' +
-      'Cukup lakukan konfirmasi & kirim bukti **satu kali saja**, tidak perlu diulang.\n\n' +
-      'ℹ️ Catatan: setelah batas waktu di atas terlewati, **tidak ada tindakan otomatis** dari sistem — ticket ini tetap akan diproses oleh staff seperti biasa.'
+      'Cukup lakukan konfirmasi & kirim bukti **satu kali saja**, tidak perlu diulang.'
     )
     .setFooter({ text: 'KokoKrunch Studios · Order Robux' });
 }

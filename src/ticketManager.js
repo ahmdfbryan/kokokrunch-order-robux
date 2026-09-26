@@ -106,8 +106,14 @@ async function createOrderTicketNow({ ticketId, uniqueCode, paymentAmount, guild
   // di sini menunda ticket pembeli BERIKUTNYA). Sengaja juga TANPA fallback
   // apapun kalau gagal -- cuma dicatat di log untuk keperluan debug, sesuai
   // permintaan.
+  const goToTicketRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setLabel('Buka Ticket').setEmoji('🎫').setStyle(ButtonStyle.Link).setURL(channel.url)
+  );
   buyerUser
-    .send({ embeds: [buildDmTicketCreatedEmbed({ ticketId, sessionTicketNumber, channelUrl: channel.url })] })
+    .send({
+      embeds: [buildDmTicketCreatedEmbed({ ticketId, sessionTicketNumber, channelUrl: channel.url })],
+      components: [goToTicketRow],
+    })
     .catch((err) => console.warn(`[Ticket] Gagal kirim DM ticket dibuat ke ${buyerUser.tag} (kemungkinan DM ditutup):`, err.message));
 
   // Update dashboard status publik (kalau fiturnya diaktifkan lewat .env) --
